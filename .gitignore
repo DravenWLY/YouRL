@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+*.swp
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Java / Spring Boot
+target/
+*.class
+*.jar
+*.war
+*.log
+application-local.properties
+
+# Node / React
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+
+# Docker
+*.pid
+
+# GCP
+serviceAccountKey.json
+*.json.key
+
+# Firebase
+.firebase/
+firebase-debug.log
