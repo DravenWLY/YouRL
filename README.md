@@ -8,7 +8,7 @@
 - Nickolas Hennigh
 - Lingyun Wu (Draven)
 - Zhe Li (Richard)
-- Jiazhen Wu
+- Jiazhen Wu(William)
 
 ## Project Overview
 
