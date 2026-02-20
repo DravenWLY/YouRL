@@ -1,0 +1,26 @@
+services:
+  bigtable:
+    image: google/cloud-sdk:emulators
+    command: ["gcloud", "beta", "emulators", "bigtable", "start", "--host-port=0.0.0.0:8086"]
+    ports:
+      - "8086:8086"
+    healthcheck:
+      # Use bash + /dev/tcp (more portable than ss inside minimal images)
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8086'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: yourl-backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      bigtable:
+        condition: service_healthy
+    environment:
+      - SERVER_PORT=8080
+      - BIGTABLE_EMULATOR_HOST=bigtable:8086
+
+# Usage: docker compose up --build

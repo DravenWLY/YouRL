@@ -1,0 +1,7 @@
+target
+.mvn
+.idea
+.git
+README.md
+*.log
+**/node_modules
