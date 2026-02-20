@@ -21,7 +21,7 @@ A globally distributed URL shortener service deployed on Google Cloud Platform (
 | Backend | Java 17 + Spring Boot 3 |
 | Frontend | React (Vite) + Firebase Hosting |
 | Auth | Firebase Authentication |
-| Database | Firestore (NoSQL) |
+| Database | Cloud Bigtable (wide-column) |
 | Caching | Caffeine (in-process) |
 | Compute | GCP Cloud Run |
 | Routing | GCP Global HTTP(S) Load Balancer |
@@ -32,7 +32,7 @@ A globally distributed URL shortener service deployed on Google Cloud Platform (
 
 ```
 YouRL/
-├── docs/           # Design documents and meeting notes
+├── docs/           # Design documents and meeting notes (authoritative design doc: Tech_Stack_Design_Discussion.md)
 ├── backend/        # Java + Spring Boot API (TBD)
 ├── frontend/       # React + Vite app (TBD)
 └── README.md
