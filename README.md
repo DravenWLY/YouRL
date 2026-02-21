@@ -1,53 +1,3 @@
-YouRL — Local Development & CI
-
-Quick start (prerequisites)
-- Recommended: Install Docker Desktop and ensure the Docker daemon is running.
-- Optional (advanced): Colima + Docker CLI can be used, but it may require extra setup (contexts, permissions). Prefer Docker Desktop for new teammates.
-
-Minimal quick run (copy/paste)
-1) From the repo root:
-
-```bash
-docker compose up --build -d
-```
-
-2) Confirm services are running:
-
-```bash
-docker compose ps
-```
-
-Check backend health:
-
-```bash
-curl -i http://localhost:8080/health
-# Expect HTTP/1.1 200 and body: ok
-```
-
-3) Stop & cleanup:
-
-```bash
-docker compose down
-```
-
-Notes & troubleshooting
-- Backend: http://localhost:8080 (GET /health returns "ok").
-- Bigtable emulator: the backend talks to the emulator internally via `BIGTABLE_EMULATOR_HOST=bigtable:8086` inside the compose network. Teammates do NOT normally need to access `localhost:8086` — that is only useful for manual debugging.
-- If you see a compose warning about a top-level `version`, it's safe to ignore; the file uses the newer Compose format (or remove the `version:` line to silence the warning).
-- If Docker Desktop is not available, see the `Troubleshooting / Alternatives` section below.
-
-CI
-- The GitHub Actions workflow `.github/workflows/ci.yml` runs on push/PR to `main` on GitHub-hosted runners. It performs:
-  - checkout → setup Java 17 (maven cache) → `mvn test` in `./backend`
-  - build the backend Docker image
-  - start the image and smoke-test `GET /health`
-- Note: CI runs on GitHub runners and does not require local GCP credentials — the workflow only builds/tests and performs a local container smoke test for now.
-
-Current status
-- Local Stage 0 scaffold committed: minimal backend, Dockerfile, `docker-compose.yml`, `.github/workflows/ci.yml`, `.dockerignore`, and this `README.md`.
-
-Next milestone (optional)
-- Add basic Bigtable read/write endpoints and tests that target the emulator so CI can run integration tests in the future.
 # YouRL — URL Shortener Service
 
 **COMP 539 — Software Engineering Methodology — Spring 2026**  
@@ -90,7 +40,69 @@ YouRL/
 
 ## Getting Started
 
-See the "Local Development & CI" section above for copy/paste run instructions.
+### Local Development & CI
+
+#### Quick start (prerequisites)
+- Recommended: Install Docker Desktop and ensure the Docker daemon is running.
+- Optional (advanced): Colima + Docker CLI can be used, but it may require extra setup (contexts, permissions). Prefer Docker Desktop for new teammates.
+- Quick check: Run `docker info` to verify the Docker daemon is running. If this fails, ensure Docker Desktop is started.
+
+#### Minimal quick run (copy/paste)
+1) From the repo root:
+
+```bash
+docker compose up --build -d
+```
+
+*Note: The first run may take several minutes to download images and build the backend.*
+
+2) Confirm services are running:
+
+```bash
+docker compose ps
+```
+
+Check backend health:
+
+```bash
+curl -i http://localhost:8080/health
+# Expect HTTP/1.1 200 and body: ok
+```
+
+*If `/health` fails, run the following to inspect backend logs:*
+
+```bash
+docker compose logs -f backend
+```
+
+3) Stop & cleanup:
+
+```bash
+docker compose down
+```
+
+#### Notes & troubleshooting
+- Backend: http://localhost:8080 (GET /health returns "ok").
+- Bigtable emulator: the backend talks to the emulator internally via `BIGTABLE_EMULATOR_HOST=bigtable:8086` inside the compose network. Teammates do NOT normally need to access `localhost:8086` — that is only useful for manual debugging.
+- If you see a compose warning about a top-level `version`, it's safe to ignore; the file uses the newer Compose format (or remove the `version:` line to silence the warning).
+- Use `docker compose` (with a space), not the legacy `docker-compose` command.
+- Port conflicts: If port 8080 (backend) or 8086 (Bigtable emulator) is already in use, stop the conflicting process or change the host port mapping in `docker-compose.yml`.
+- If Docker Desktop is not available, see the `Troubleshooting / Alternatives` section below.
+
+### CI
+- The GitHub Actions workflow `.github/workflows/ci.yml` runs on push/PR to `main` on GitHub-hosted runners. It performs:
+  - checkout → setup Java 17 (maven cache) → `mvn test` in `./backend`
+  - build the backend Docker image
+  - start the image and smoke-test `GET /health`
+- Note: CI runs on GitHub runners and does not require local GCP credentials — the workflow only builds/tests and performs a local container smoke test for now.
+
+## Current Status
+
+- Local Stage 0 scaffold committed: minimal backend, Dockerfile, `docker-compose.yml`, `.github/workflows/ci.yml`, `.dockerignore`, and this `README.md`.
+
+## Next Milestone (optional)
+
+- Add basic Bigtable read/write endpoints and tests that target the emulator so CI can run integration tests in the future.
 
 ## License
 
