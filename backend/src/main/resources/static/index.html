@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head><title>YouRL - Shorten Your Life</title></head>
+<body>
+    <h1>YouRL Shortener</h1>
+    <input type="text" id="longUrl" placeholder="Paste your long URL here">
+    <button onclick="shorten()">Shorten!</button>
+    <p id="result"></p>
+
+    <script>
+        async function shorten() {
+            const longUrl = document.getElementById('longUrl').value;
+            const response = await fetch('/api/shorten', {
+                method: 'POST',
+                body: longUrl
+            });
+            const shortId = await response.text();
+            const fullUrl = window.location.origin + '/' + shortId;
+            document.getElementById('result').innerHTML = `Short URL: <a href="${fullUrl}">${fullUrl}</a>`;
+        }
+    </script>
+</body>
+</html>
