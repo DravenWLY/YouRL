@@ -47,6 +47,14 @@ YouRL/
 - Optional (advanced): Colima + Docker CLI can be used, but it may require extra setup (contexts, permissions). Prefer Docker Desktop for new teammates.
 - Quick check: Run `docker info` to verify the Docker daemon is running. If this fails, ensure Docker Desktop is started.
 
+
+#### Local Demo Run:
+To run: 
+-In one terminal run: gcloud beta emulators bigtable start --host-port=localhost:8086
+-In a second terminal run: mvn clean spring-boot:run
+
+
+
 #### Minimal quick run (copy/paste)
 1) From the repo root:
 
