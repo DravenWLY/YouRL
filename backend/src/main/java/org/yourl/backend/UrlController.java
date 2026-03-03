@@ -18,8 +18,11 @@ public class UrlController {
         return bigTableService.shortenUrl(longUrl);
     }
 
-    // API Method b: resolve_url & Redirection
-    @GetMapping("/{shortId}")
+    // API Method b: resolve_url
+    // FIX: Added ":[^.]+" to the path variable. 
+    // This regex means "match only if there are NO dots". 
+    // So "abc1234" matches, but "index.html" is ignored and falls through to the static folder.
+    @GetMapping("/{shortId:[^.]+}") 
     public ResponseEntity<Void> resolve(@PathVariable String shortId) {
         String longUrl = bigTableService.resolveUrl(shortId);
         if (longUrl != null) {
