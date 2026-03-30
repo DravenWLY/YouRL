@@ -33,10 +33,22 @@ public class BigTableService {
         }
 
         // 3. Initialize the Data Client for reading/writing
-        this.dataClient = BigtableDataClient.create(projectId, instanceId);
+        try {
+            this.dataClient = BigtableDataClient.create(projectId, instanceId);
+        } catch (Exception e) {
+            System.err.println("Bigtable data client unavailable; starting without URL storage: " + e.getMessage());
+            this.dataClient = null;
+        }
+    }
+
+    public boolean isAvailable() {
+        return dataClient != null;
     }
 
     public String shortenUrl(String longUrl) {
+        if (dataClient == null) {
+            throw new IllegalStateException("Bigtable is unavailable");
+        }
         String shortId = UUID.randomUUID().toString().substring(0, 7);
         RowMutation mutation = RowMutation.create(tableId, shortId)
                 .setCell(columnFamily, "url", longUrl);
@@ -45,6 +57,9 @@ public class BigTableService {
     }
 
     public String resolveUrl(String shortId) {
+        if (dataClient == null) {
+            throw new IllegalStateException("Bigtable is unavailable");
+        }
         Row row = dataClient.readRow(tableId, shortId);
         if (row != null) {
             return row.getCells(columnFamily, "url").get(0).getValue().toStringUtf8();
