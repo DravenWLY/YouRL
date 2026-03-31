@@ -5,7 +5,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.net.URI;
-import java.util.Map;
 
 @RestController
 public class UrlController {
@@ -15,10 +14,10 @@ public class UrlController {
 
     // API Method a: shorten_url
     @PostMapping("/api/shorten")
-    public ResponseEntity<?> shorten(@RequestBody String longUrl) {
+    public ResponseEntity<String> shorten(@RequestBody String longUrl) {
         if (!bigTableService.isAvailable()) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(Map.of("error", "Bigtable is unavailable"));
+                    .body("Bigtable is unavailable");
         }
         return ResponseEntity.ok(bigTableService.shortenUrl(longUrl));
     }

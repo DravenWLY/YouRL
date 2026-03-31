@@ -9,9 +9,13 @@ import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class BigTableService {
+    private static final Logger logger = LoggerFactory.getLogger(BigTableService.class);
+
     private final String projectId = "you-rl-demo";
     private final String instanceId = "you-rl-instance";
     private final String tableId = "links";
@@ -25,18 +29,18 @@ public class BigTableService {
         try (BigtableTableAdminClient adminClient = BigtableTableAdminClient.create(projectId, instanceId)) {
             // 2. Create the table if it doesn't exist
             if (!adminClient.exists(tableId)) {
-                System.out.println("Creating table: " + tableId);
+                logger.info("Creating table: {}", tableId);
                 adminClient.createTable(CreateTableRequest.of(tableId).addFamily(columnFamily));
             }
         } catch (Exception e) {
-            System.err.println("Note: Table might already exist or emulator is unreachable: " + e.getMessage());
+            logger.warn("Table setup skipped because Bigtable is unavailable", e);
         }
 
         // 3. Initialize the Data Client for reading/writing
         try {
             this.dataClient = BigtableDataClient.create(projectId, instanceId);
         } catch (Exception e) {
-            System.err.println("Bigtable data client unavailable; starting without URL storage: " + e.getMessage());
+            logger.warn("Bigtable data client unavailable; starting without URL storage", e);
             this.dataClient = null;
         }
     }
