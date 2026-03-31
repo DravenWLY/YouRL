@@ -14,8 +14,12 @@ public class UrlController {
 
     // API Method a: shorten_url
     @PostMapping("/api/shorten")
-    public String shorten(@RequestBody String longUrl) {
-        return bigTableService.shortenUrl(longUrl);
+    public ResponseEntity<String> shorten(@RequestBody String longUrl) {
+        if (!bigTableService.isAvailable()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body("Bigtable is unavailable");
+        }
+        return ResponseEntity.ok(bigTableService.shortenUrl(longUrl));
     }
 
     // API Method b: resolve_url
@@ -24,6 +28,9 @@ public class UrlController {
     // So "abc1234" matches, but "index.html" is ignored and falls through to the static folder.
     @GetMapping("/{shortId:[^.]+}") 
     public ResponseEntity<Void> resolve(@PathVariable String shortId) {
+        if (!bigTableService.isAvailable()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
         String longUrl = bigTableService.resolveUrl(shortId);
         if (longUrl != null) {
             return ResponseEntity.status(HttpStatus.FOUND)

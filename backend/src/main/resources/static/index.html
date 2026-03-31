@@ -14,7 +14,12 @@
                 method: 'POST',
                 body: longUrl
             });
-            const shortId = await response.text();
+            const body = await response.text();
+            if (!response.ok) {
+                document.getElementById('result').textContent = `Error: ${body}`;
+                return;
+            }
+            const shortId = body;
             const fullUrl = window.location.origin + '/' + shortId;
             document.getElementById('result').innerHTML = `Short URL: <a href="${fullUrl}">${fullUrl}</a>`;
         }
