@@ -28,6 +28,13 @@ System Architecture (high level)
 - Analytics: Pub/Sub + worker (durable, batched increments into Bigtable).
 - CI/CD: GitHub Actions → Artifact Registry → Cloud Run; use Workload Identity Federation for auth.
 
+Current implementation phase (MVP v1)
+- Implemented now: local Spring Boot backend, Bigtable emulator support, `POST /api/shorten`, and `GET /{short_code}`.
+- Current authoritative storage in code: `urls` table only.
+- Current implemented column families: `meta` and `stats`.
+- Deferred to later milestones: `users`, `user_urls`, Firebase Auth, Cloud Run multi-region deploy, cache layer, and Pub/Sub analytics worker.
+- Rationale: this keeps the current hot path minimal while frontend, expiration, and later analytics work can build on a stable contract.
+
 Data Model (Bigtable tables and schemas)
 All schemas are implementable Bigtable tables with explicit row keys and column families.
 

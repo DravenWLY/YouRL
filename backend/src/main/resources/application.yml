@@ -1,0 +1,9 @@
+yourl:
+  bigtable:
+    project-id: ${BIGTABLE_PROJECT_ID:you-rl-demo}
+    instance-id: ${BIGTABLE_INSTANCE_ID:you-rl-instance}
+    table-id: ${BIGTABLE_TABLE_ID:urls}
+    meta-family: ${BIGTABLE_META_FAMILY:meta}
+    stats-family: ${BIGTABLE_STATS_FAMILY:stats}
+    short-code-length: ${YOURL_SHORT_CODE_LENGTH:7}
+    max-generation-attempts: ${YOURL_MAX_GENERATION_ATTEMPTS:8}
