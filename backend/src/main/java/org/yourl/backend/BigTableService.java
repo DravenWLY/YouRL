@@ -105,7 +105,7 @@ public class BigTableService {
             return cached;
         }
 
-        if (dataClient == null) {
+        if (!isAvailable()) {
             throw new IllegalStateException("Bigtable is unavailable");
         }
 
