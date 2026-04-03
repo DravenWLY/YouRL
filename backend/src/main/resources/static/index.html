@@ -4,24 +4,31 @@
 <body>
     <h1>YouRL Shortener</h1>
     <input type="text" id="longUrl" placeholder="Paste your long URL here">
+    <input type="datetime-local" id="expiresAt" placeholder="Optional expiration">
     <button onclick="shorten()">Shorten!</button>
     <p id="result"></p>
 
     <script>
         async function shorten() {
             const longUrl = document.getElementById('longUrl').value;
+            const expiresAtInput = document.getElementById('expiresAt').value;
+            const expiresAt = expiresAtInput ? new Date(expiresAtInput).toISOString() : null;
             const response = await fetch('/api/shorten', {
                 method: 'POST',
-                body: longUrl
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    longUrl,
+                    expiresAt
+                })
             });
-            const body = await response.text();
+            const body = await response.json();
             if (!response.ok) {
-                document.getElementById('result').textContent = `Error: ${body}`;
+                document.getElementById('result').textContent = `Error: ${body.error || 'Unknown error'}`;
                 return;
             }
-            const shortId = body;
-            const fullUrl = window.location.origin + '/' + shortId;
-            document.getElementById('result').innerHTML = `Short URL: <a href="${fullUrl}">${fullUrl}</a>`;
+            document.getElementById('result').innerHTML = `Short URL: <a href="${body.shortUrl}">${body.shortUrl}</a>`;
         }
     </script>
 </body>

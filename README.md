@@ -34,6 +34,7 @@ A globally distributed URL shortener service deployed on Google Cloud Platform (
 ```
 YouRL/
 ├── docs/           # Design documents and meeting notes (authoritative design doc: Tech_Stack_Design_Discussion.md)
+├── docs/API_Contract.md  # frozen request/response contract for the current MVP
 ├── backend/        # Java + Spring Boot API (minimal skeleton included)
 ├── frontend/       # React + Vite app (TBD)
 └── README.md
@@ -93,6 +94,7 @@ docker compose down
 #### Notes & troubleshooting
 - Backend: http://localhost:8080 (GET /health returns "ok").
 - Bigtable emulator: the backend talks to the emulator internally via `BIGTABLE_EMULATOR_HOST=bigtable:8086` inside the compose network. Teammates do NOT normally need to access `localhost:8086` — that is only useful for manual debugging.
+- Current MVP API contract is documented in `docs/API_Contract.md`.
 - If you see a compose warning about a top-level `version`, it's safe to ignore; the file uses the newer Compose format (or remove the `version:` line to silence the warning).
 - Use `docker compose` (with a space), not the legacy `docker-compose` command.
 - Port conflicts: If port 8080 (backend) or 8086 (Bigtable emulator) is already in use, stop the conflicting process or change the host port mapping in `docker-compose.yml`.
@@ -107,11 +109,15 @@ docker compose down
 
 ## Current Status
 
-- Local Stage 0 scaffold committed: minimal backend, Dockerfile, `docker-compose.yml`, `.github/workflows/ci.yml`, `.dockerignore`, and this `README.md`.
+- Local MVP on `main`: shorten and resolve endpoints are working with the Bigtable emulator.
+- Current backend contract is JSON-based for `POST /api/shorten` and redirect-based for `GET /{shortId}`.
+- Current storage schema in code uses a single `urls` table with `meta` and `stats` column families.
 
 ## Next Milestone (optional)
 
-- Add basic Bigtable read/write endpoints and tests that target the emulator so CI can run integration tests in the future.
+- Add controller tests for the JSON API contract and error handling.
+- Expand the `urls` schema to support expiration behavior and later analytics.
+- Begin frontend integration against the frozen MVP contract.
 
 ## License
 
