@@ -7,3 +7,6 @@ yourl:
     stats-family: ${BIGTABLE_STATS_FAMILY:stats}
     short-code-length: ${YOURL_SHORT_CODE_LENGTH:7}
     max-generation-attempts: ${YOURL_MAX_GENERATION_ATTEMPTS:8}
+  cache:
+    ttl-seconds: ${YOURL_CACHE_TTL_SECONDS:300}
+    max-size: ${YOURL_CACHE_MAX_SIZE:10000}
