@@ -7,110 +7,121 @@
 
 - Nickolas Hennigh
 - Lingyun Wu (Draven)
+- Beiming Zhang
 - Zhe Li (Richard)
-- Jiazhen Wu(William)
+- Jiazhen Wu (William)
 
-## Project Overview
+## Overview
 
-A globally distributed URL shortener service deployed on Google Cloud Platform (GCP).
+YouRL is a URL shortener built for COMP 539. Our target architecture is:
+- Java 17 + Spring Boot backend
+- Cloud Bigtable as the primary database
+- React (Vite) frontend
+- GCP deployment later in the course
+
+## Current MVP Status
+
+Current local MVP supports:
+- `POST /api/shorten` to create a short URL
+- `GET /{shortId}` to resolve and redirect
+- Bigtable emulator for local storage
+- `urls` table with `meta` and `stats` column families
+
+Current request contract:
+- `POST /api/shorten` uses JSON
+- `GET /{shortId}` returns `302 Found` on success
+
+See `/Users/wulingyun/Desktop/Rice/Courses/Spring 2026/COMP_539/YouRL/docs/API_Contract.md` for the frozen MVP request/response format.
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
 | Backend | Java 17 + Spring Boot 3 |
-| Frontend | React (Vite) + Firebase Hosting |
-| Auth | Firebase Authentication |
-| Database | Cloud Bigtable (wide-column) |
-| Caching | Caffeine (in-process) |
-| Compute | GCP Cloud Run |
-| Routing | GCP Global HTTP(S) Load Balancer |
-| CI/CD | GitHub Actions |
-| API Docs | SpringDoc OpenAPI (Swagger UI) |
+| Database | Cloud Bigtable |
+| Local DB | Bigtable emulator |
+| Frontend | React (Vite) |
+| Auth | Firebase Authentication (planned) |
+| Caching | Caffeine (planned) |
+| Compute | GCP Cloud Run (planned) |
+| CI | GitHub Actions |
 
 ## Project Structure
 
-```
+```text
 YouRL/
-├── docs/           # Design documents and meeting notes (authoritative design doc: Tech_Stack_Design_Discussion.md)
-├── backend/        # Java + Spring Boot API (minimal skeleton included)
-├── frontend/       # React + Vite app (TBD)
+├── backend/                     # Spring Boot backend
+├── docs/                        # Design and API docs
+│   ├── Tech_Stack_Design_Discussion.md
+│   └── API_Contract.md
+├── docker-compose.yml           # Local backend + Bigtable emulator
 └── README.md
 ```
 
-## Getting Started
+## Local Development
 
-### Local Development & CI
+### Prerequisite
+- Docker Desktop running
 
-#### Quick start (prerequisites)
-- Recommended: Install Docker Desktop and ensure the Docker daemon is running.
-- Optional (advanced): Colima + Docker CLI can be used, but it may require extra setup (contexts, permissions). Prefer Docker Desktop for new teammates.
-- Quick check: Run `docker info` to verify the Docker daemon is running. If this fails, ensure Docker Desktop is started.
-
-
-#### Local Demo Run:
-To run: 
--In one terminal run: gcloud beta emulators bigtable start --host-port=localhost:8086
--In a second terminal run: mvn clean spring-boot:run
-
-
-
-#### Minimal quick run (copy/paste)
-1) From the repo root:
+### Start the local stack
 
 ```bash
 docker compose up --build -d
 ```
 
-*Note: The first run may take several minutes to download images and build the backend.*
-
-2) Confirm services are running:
-
-```bash
-docker compose ps
-```
-
-Check backend health:
+### Health check
 
 ```bash
 curl -i http://localhost:8080/health
-# Expect HTTP/1.1 200 and body: ok
 ```
 
-*If `/health` fails, run the following to inspect backend logs:*
+Expected:
+
+```text
+HTTP/1.1 200
+ok
+```
+
+### Example: shorten a URL
 
 ```bash
-docker compose logs -f backend
+curl -i -X POST http://localhost:8080/api/shorten \
+  -H "Content-Type: application/json" \
+  --data '{"longUrl":"https://www.rice.edu","expiresAt":null}'
 ```
 
-3) Stop & cleanup:
+### Example: resolve a short URL
 
 ```bash
-docker compose down
+curl -i http://localhost:8080/<shortId>
 ```
 
-#### Notes & troubleshooting
-- Backend: http://localhost:8080 (GET /health returns "ok").
-- Bigtable emulator: the backend talks to the emulator internally via `BIGTABLE_EMULATOR_HOST=bigtable:8086` inside the compose network. Teammates do NOT normally need to access `localhost:8086` — that is only useful for manual debugging.
-- If you see a compose warning about a top-level `version`, it's safe to ignore; the file uses the newer Compose format (or remove the `version:` line to silence the warning).
-- Use `docker compose` (with a space), not the legacy `docker-compose` command.
-- Port conflicts: If port 8080 (backend) or 8086 (Bigtable emulator) is already in use, stop the conflicting process or change the host port mapping in `docker-compose.yml`.
-- If Docker Desktop is not available, see the `Troubleshooting / Alternatives` section below.
+Expected:
 
-### CI
-- The GitHub Actions workflow `.github/workflows/ci.yml` runs on push/PR to `main` on GitHub-hosted runners. It performs:
-  - checkout → setup Java 17 (maven cache) → `mvn test` in `./backend`
-  - build the backend Docker image
-  - start the image and smoke-test `GET /health`
-- Note: CI runs on GitHub runners and does not require local GCP credentials — the workflow only builds/tests and performs a local container smoke test for now.
+```text
+HTTP/1.1 302
+Location: https://www.rice.edu
+```
 
-## Current Status
+### Stop the local stack
 
-- Local Stage 0 scaffold committed: minimal backend, Dockerfile, `docker-compose.yml`, `.github/workflows/ci.yml`, `.dockerignore`, and this `README.md`.
+```bash
+docker compose down --remove-orphans
+```
 
-## Next Milestone (optional)
+## CI
 
-- Add basic Bigtable read/write endpoints and tests that target the emulator so CI can run integration tests in the future.
+GitHub Actions currently does three things on PRs to `main`:
+- runs backend tests
+- builds the backend Docker image
+- starts the container and smoke-tests `GET /health`
+
+## Near-Term Next Steps
+
+- frontend integration against the frozen MVP contract
+- expiration behavior on top of `meta:expires_at` and `meta:is_active`
+- logging / metrics v1 for shorten and resolve flows
+- deployment/CD skeleton for later GCP rollout
 
 ## License
 
