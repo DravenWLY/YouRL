@@ -77,13 +77,13 @@ public class BigtableProperties {
     }
 
     public void setUsersTableId(String usersTableId) { 
-        this usersTableId = usersTableId; 
+        this.usersTableId = usersTableId; 
     }
 
     public String getUserInfoFamily() { 
         return userInfoFamily; 
     }
-    
+
     public void setUserInfoFamily(String userInfoFamily) { 
         this.userInfoFamily = userInfoFamily; 
     }
