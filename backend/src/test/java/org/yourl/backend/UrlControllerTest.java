@@ -33,10 +33,12 @@ class UrlControllerTest {
     void shortenReturnsJsonResponse() throws Exception {
         Instant createdAt = Instant.parse("2026-04-02T23:15:42.019Z");
         Mockito.when(bigTableService.isAvailable()).thenReturn(true);
-        Mockito.when(bigTableService.shortenUrl("https://www.rice.edu", null))
-                .thenReturn(new UrlMapping("abc1234", "https://www.rice.edu", createdAt, null, true));
+        //Updated mock to expect a ShortenRequest object instead of a String, and return the updated UrlMapping
+        Mockito.when(bigTableService.shortenUrl(Mockito.any(ShortenRequest.class)))
+                .thenReturn(new UrlMapping("abc1234", "https://www.rice.edu", "test-user", createdAt, null, true));
 
-        ShortenRequest request = new ShortenRequest("https://www.rice.edu", null);
+        //Added "test-user" as the third argument for the userId
+        ShortenRequest request = new ShortenRequest("https://www.rice.edu", null, "test-user");
 
         mockMvc.perform(post("/api/shorten")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -53,7 +55,8 @@ class UrlControllerTest {
     void shortenReturnsBadRequestForInvalidUrl() throws Exception {
         Mockito.when(bigTableService.isAvailable()).thenReturn(true);
 
-        ShortenRequest request = new ShortenRequest("not-a-url", null);
+        // Added "test-user" as the third argument
+        ShortenRequest request = new ShortenRequest("not-a-url", null, "test-user");
 
         mockMvc.perform(post("/api/shorten")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -66,7 +69,8 @@ class UrlControllerTest {
     void shortenReturnsServiceUnavailableWhenBigtableIsDown() throws Exception {
         Mockito.when(bigTableService.isAvailable()).thenReturn(false);
 
-        ShortenRequest request = new ShortenRequest("https://www.rice.edu", null);
+        // Added "test-user" as the third argument
+        ShortenRequest request = new ShortenRequest("https://www.rice.edu", null, "test-user");
 
         mockMvc.perform(post("/api/shorten")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -78,10 +82,12 @@ class UrlControllerTest {
     @Test
     void resolveReturnsRedirectWhenShortCodeExists() throws Exception {
         Mockito.when(bigTableService.isAvailable()).thenReturn(true);
+        // Added "test-user" as the third argument in the UrlMapping constructor
         Mockito.when(bigTableService.resolveUrl("abc1234"))
                 .thenReturn(new UrlMapping(
                         "abc1234",
                         "https://www.rice.edu",
+                        "test-user",
                         Instant.parse("2026-04-02T23:15:42.019Z"),
                         null,
                         true));
