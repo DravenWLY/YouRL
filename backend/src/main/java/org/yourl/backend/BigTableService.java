@@ -31,25 +31,31 @@ public class BigTableService {
 
     @PostConstruct
     public void init() {
-        try (BigtableTableAdminClient adminClient = BigtableTableAdminClient.create(
-                properties.getProjectId(),
-                properties.getInstanceId()
-        )) {
-            // Initialize Links Table
-            if (!adminClient.exists(properties.getTableId())) {
-                adminClient.createTable(CreateTableRequest.of(properties.getTableId())
-                        .addFamily(properties.getMetaFamily()));
+        try {
+            // 1. Initialize the Admin Client to manage tables
+            try (BigtableTableAdminClient adminClient = BigtableTableAdminClient.create(
+                    properties.getProjectId(),
+                    properties.getInstanceId()
+            )) {
+                // Initialize Links Table
+                if (!adminClient.exists(properties.getTableId())) {
+                    adminClient.createTable(CreateTableRequest.of(properties.getTableId())
+                            .addFamily(properties.getMetaFamily()));
+                }
+                
+                // Initialize Users Table
+                if (!adminClient.exists(properties.getUsersTableId())) {
+                    adminClient.createTable(CreateTableRequest.of(properties.getUsersTableId())
+                            .addFamily(properties.getUserInfoFamily()));
+                }
             }
-            
-            if (!adminClient.exists(properties.getUsersTableId())) {
-                adminClient.createTable(CreateTableRequest.of(properties.getUsersTableId())
-                        .addFamily(properties.getUserInfoFamily()));
-            }
+
+            // 2. Initialize the Data Client
+            this.dataClient = BigtableDataClient.create(properties.getProjectId(), properties.getInstanceId());
+
         } catch (IOException e) {
-            logger.error("Failed to initialize Bigtable tables", e);
+            logger.error("Failed to initialize Bigtable clients or tables", e);
         }
-        
-        this.dataClient = BigtableDataClient.create(properties.getProjectId(), properties.getInstanceId());
     }
 
     public UrlMapping shortenUrl(ShortenRequest request) {
