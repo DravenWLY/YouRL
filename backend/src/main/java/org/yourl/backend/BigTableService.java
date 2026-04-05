@@ -9,6 +9,7 @@ import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import java.io.IOException;
 
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -92,9 +93,6 @@ public class BigTableService {
             return null;
         }
 
-        //Read userID
-        String userId = readCellAsString(row, properties.getMetaFamily(), "user_id");
-
         return mapping;
     }
 
@@ -104,10 +102,15 @@ public class BigTableService {
 
     private UrlMapping toUrlMapping(String shortId, Row row) {
         String longUrl = readCellAsString(row, properties.getMetaFamily(), "long_url");
+        
+        //Read the userId from the row
+        String userId = readCellAsString(row, properties.getMetaFamily(), "user_id");
+        
         Instant createdAt = parseInstant(readCellAsString(row, properties.getMetaFamily(), "created_at"));
         Instant expiresAt = parseInstant(readCellAsString(row, properties.getMetaFamily(), "expires_at"));
         String activeText = readCellAsString(row, properties.getMetaFamily(), "is_active");
         boolean active = activeText == null || Boolean.parseBoolean(activeText);
+       
         return new UrlMapping(shortId, longUrl, userId, createdAt, expiresAt, active);    
     }
 
