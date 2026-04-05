@@ -7,6 +7,7 @@ public record UrlMapping(
         String longUrl,
         Instant createdAt,
         Instant expiresAt,
-        boolean active
+        boolean active,
+        String userId,
 ) {
 }

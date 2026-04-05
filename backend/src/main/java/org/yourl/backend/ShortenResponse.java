@@ -7,6 +7,7 @@ public record ShortenResponse(
         String shortUrl,
         String longUrl,
         Instant createdAt,
-        Instant expiresAt
+        Instant expiresAt,
+        String userId,
 ) {
 }

@@ -11,6 +11,9 @@ public class BigtableProperties {
     private String statsFamily = "stats";
     private int shortCodeLength = 7;
     private int maxGenerationAttempts = 8;
+    //User account fields
+    private String usersTableId = "users";
+    private String userInfoFamily = "info";
 
     public String getProjectId() {
         return projectId;
@@ -66,5 +69,22 @@ public class BigtableProperties {
 
     public void setMaxGenerationAttempts(int maxGenerationAttempts) {
         this.maxGenerationAttempts = maxGenerationAttempts;
+    }
+
+    //User account getters and setters
+    public String getUsersTableId() { 
+        return usersTableId; 
+    }
+
+    public void setUsersTableId(String usersTableId) { 
+        this usersTableId = usersTableId; 
+    }
+
+    public String getUserInfoFamily() { 
+        return userInfoFamily; 
+    }
+    
+    public void setUserInfoFamily(String userInfoFamily) { 
+        this.userInfoFamily = userInfoFamily; 
     }
 }
