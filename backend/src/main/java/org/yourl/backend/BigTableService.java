@@ -30,71 +30,47 @@ public class BigTableService {
 
     @PostConstruct
     public void init() {
-        // 1. Initialize the Admin Client to manage tables
         try (BigtableTableAdminClient adminClient = BigtableTableAdminClient.create(
                 properties.getProjectId(),
                 properties.getInstanceId()
         )) {
-            // 2. Create the table if it doesn't exist
+            // Initialize Links Table
             if (!adminClient.exists(properties.getTableId())) {
-                logger.info("Creating table: {}", properties.getTableId());
                 adminClient.createTable(CreateTableRequest.of(properties.getTableId())
-                        .addFamily(properties.getMetaFamily())
-                        .addFamily(properties.getStatsFamily()));
+                        .addFamily(properties.getMetaFamily()));
             }
-        } catch (Exception e) {
-            logger.warn("Table setup skipped because Bigtable is unavailable", e);
+            
+            if (!adminClient.exists(properties.getUsersTableId())) {
+                adminClient.createTable(CreateTableRequest.of(properties.getUsersTableId())
+                        .addFamily(properties.getUserInfoFamily()));
+            }
+        } catch (IOException e) {
+            logger.error("Failed to initialize Bigtable tables", e);
         }
-
-        // 3. Initialize the Data Client for reading/writing
-        try {
-            this.dataClient = BigtableDataClient.create(
-                    properties.getProjectId(),
-                    properties.getInstanceId()
-            );
-        } catch (Exception e) {
-            logger.warn("Bigtable data client unavailable; starting without URL storage", e);
-            this.dataClient = null;
-        }
-        //Users table creation
-        if (!adminClient.exists(properties.getUsersTableId())) {
-            adminClient.createTable(CreateTableRequest.of(properties.getUsersTableId())
-                    .addFamily(properties.getUserInfoFamily()));
-        }
+        
+        this.dataClient = BigtableDataClient.create(properties.getProjectId(), properties.getInstanceId());
     }
 
-    public boolean isAvailable() {
-        return dataClient != null;
-    }
+    public UrlMapping shortenUrl(ShortenRequest request) {
+        String shortId = generateShortCode();
+        Instant now = Instant.now();
+        
+        RowMutation mutation = RowMutation.create(properties.getTableId(), shortId)
+                .setCell(properties.getMetaFamily(), "long_url", request.longUrl())
+                .setCell(properties.getMetaFamily(), "created_at", now.toString())
+                .setCell(properties.getMetaFamily(), "is_active", "true");
 
-    public UrlMapping shortenUrl(String longUrl, Instant expiresAt) {
-        if (dataClient == null) {
-            throw new IllegalStateException("Bigtable is unavailable");
+        if (request.expiresAt() != null) {
+            mutation.setCell(properties.getMetaFamily(), "expires_at", request.expiresAt().toString());
+        }
+        
+        if (request.userId() != null) {
+            mutation.setCell(properties.getMetaFamily(), "user_id", request.userId());
         }
 
-        Instant createdAt = Instant.now();
-        for (int attempt = 0; attempt < properties.getMaxGenerationAttempts(); attempt++) {
-            String shortId = generateShortCode();
-            if (dataClient.readRow(properties.getTableId(), shortId) != null) {
-                continue;
-            }
-
-            RowMutation mutation = RowMutation.create(properties.getTableId(), shortId)
-                    .setCell(properties.getMetaFamily(), "long_url", longUrl)
-                    .setCell(properties.getMetaFamily(), "created_at", createdAt.toString())
-                    .setCell(properties.getMetaFamily(), "is_active", Boolean.TRUE.toString())
-                    .setCell(properties.getStatsFamily(), "click_count", "0")
-                    .setCell(properties.getMetaFamily(), "user_id", request.userId() != null ? request.userId() : "anonymous"); //Saves UserID if provided
-
-            if (expiresAt != null) {
-                mutation.setCell(properties.getMetaFamily(), "expires_at", expiresAt.toString());
-            }
-
-            dataClient.mutateRow(mutation);
-            return new UrlMapping(shortId, longUrl, createdAt, expiresAt, true);
-        }
-
-        throw new IllegalStateException("Unable to generate a unique short code after retries");
+        dataClient.mutateRow(mutation);
+        
+        return new UrlMapping(shortId, request.longUrl(), request.userId(), now, request.expiresAt(), true);
     }
 
     public UrlMapping resolveUrl(String shortId) {
@@ -122,13 +98,17 @@ public class BigTableService {
         return mapping;
     }
 
+    public boolean isAvailable() {
+        return dataClient != null;
+    }
+
     private UrlMapping toUrlMapping(String shortId, Row row) {
         String longUrl = readCellAsString(row, properties.getMetaFamily(), "long_url");
         Instant createdAt = parseInstant(readCellAsString(row, properties.getMetaFamily(), "created_at"));
         Instant expiresAt = parseInstant(readCellAsString(row, properties.getMetaFamily(), "expires_at"));
         String activeText = readCellAsString(row, properties.getMetaFamily(), "is_active");
         boolean active = activeText == null || Boolean.parseBoolean(activeText);
-        return new UrlMapping(shortId, longUrl, createdAt, expiresAt, active);
+        return new UrlMapping(shortId, longUrl, userId, createdAt, expiresAt, active);    
     }
 
     private String readCellAsString(Row row, String family, String qualifier) {

@@ -39,16 +39,19 @@ public class UrlController {
             return ResponseEntity.badRequest().body(new ErrorResponse("expiresAt must be in the future"));
         }
 
-        UrlMapping mapping = bigTableService.shortenUrl(request.longUrl(), expiresAt);
+        UrlMapping mapping = bigTableService.shortenUrl(request); // Note: we pass the whole request now
+
         String shortUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
                 .path("/{shortId}")
                 .buildAndExpand(mapping.shortId())
                 .toUriString();
 
+        // Including mapping.userId() in the response constructor
         return ResponseEntity.ok(new ShortenResponse(
                 mapping.shortId(),
                 shortUrl,
                 mapping.longUrl(),
+                mapping.userId(), // Added this line
                 mapping.createdAt(),
                 mapping.expiresAt()
         ));
