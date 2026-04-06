@@ -80,7 +80,7 @@ export const RecentUrls: React.FC = () => {
               <tr key={url.shortCode} className="hover:bg-gray-50">
                 <td className="px-4 py-3">
                   <a
-                    href={ApiService.getShortUrl(url.shortCode)}
+                    href={`/${url.shortCode}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="font-mono text-primary-600 hover:text-primary-800"

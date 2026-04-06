@@ -87,7 +87,7 @@ export const UrlStats: React.FC<UrlStatsProps> = ({ shortCode }) => {
 
         <div className="pt-4 border-t">
           <a
-            href={ApiService.getShortUrl(stats.shortCode)}
+            href={`/${stats.shortCode}`}
             target="_blank"
             rel="noopener noreferrer"
             className="btn-primary inline-block"

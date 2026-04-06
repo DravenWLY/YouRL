@@ -6,13 +6,26 @@ export interface UrlData {
   clickCount?: number;
 }
 
-export interface ShortenUrlRequest {
-  url: string;
+// Backend DTO: ShortenRequest.java
+export interface ShortenRequest {
+  longUrl: string;
+  expiresAt?: string | null; // ISO date string or null
+  // Note: userId field exists in backend but we'll skip for now until auth is implemented
 }
 
-export interface ShortenUrlResponse {
-  shortCode: string;
-  shortUrl: string;
+// Backend DTO: ShortenResponse.java
+export interface ShortenResponse {
+  shortId: string;
+  shortUrl: string; // Full URL provided by backend
+  longUrl: string;
+  userId?: string | null;
+  createdAt: string; // ISO date string
+  expiresAt?: string | null; // ISO date string or null
+}
+
+// Backend DTO: ErrorResponse.java
+export interface ErrorResponse {
+  error: string;
 }
 
 export interface ApiError {

@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { ApiService } from '@/services/api';
-import { ShortenUrlResponse } from '@/types';
+import { ShortenResponse } from '@/types';
 
 interface UrlShortenerFormProps {
-  onShortenSuccess?: (response: ShortenUrlResponse) => void;
+  onShortenSuccess?: (response: ShortenResponse) => void;
 }
 
 export const UrlShortenerForm: React.FC<UrlShortenerFormProps> = ({ onShortenSuccess }) => {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<ShortenUrlResponse | null>(null);
+  const [result, setResult] = useState<ShortenResponse | null>(null);
 
   const validateUrl = (input: string): boolean => {
     try {
@@ -108,9 +108,9 @@ export const UrlShortenerForm: React.FC<UrlShortenerFormProps> = ({ onShortenSuc
               Copy
             </button>
           </div>
-          <p className="text-sm text-gray-600 mt-2">
-            Short code: <code className="font-mono bg-gray-100 px-2 py-1 rounded">{result.shortCode}</code>
-          </p>
+<p className="text-sm text-gray-600 mt-2">
+             Short ID: <code className="font-mono bg-gray-100 px-2 py-1 rounded">{result.shortId}</code>
+           </p>
         </div>
       )}
 

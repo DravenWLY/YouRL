@@ -1,9 +1,9 @@
 import React from 'react';
 import { UrlShortenerForm } from '@/components/UrlShortenerForm';
-import { ShortenUrlResponse } from '@/types';
+import { ShortenResponse } from '@/types';
 
 export const HomePage: React.FC = () => {
-  const handleShortenSuccess = (response: ShortenUrlResponse) => {
+  const handleShortenSuccess = (response: ShortenResponse) => {
     console.log('URL shortened successfully:', response);
   };
 
