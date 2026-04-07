@@ -42,7 +42,7 @@ See `/Users/wulingyun/Desktop/Rice/Courses/Spring 2026/COMP_539/YouRL/docs/API_C
 | Local DB | Bigtable emulator |
 | Frontend | React (Vite) |
 | Auth | Firebase Authentication (planned) |
-| Caching | Caffeine (planned) |
+| Caching | Caffeine (in-process, active) |
 | Compute | GCP Cloud Run (planned) |
 | CI | GitHub Actions |
 

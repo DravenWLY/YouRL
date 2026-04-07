@@ -32,7 +32,8 @@ Current implementation phase (MVP v1)
 - Implemented now: local Spring Boot backend, Bigtable emulator support, `POST /api/shorten`, and `GET /{short_code}`.
 - Current authoritative storage in code: `urls` table only.
 - Current implemented column families: `meta` and `stats`.
-- Deferred to later milestones: `users`, `user_urls`, Firebase Auth, Cloud Run multi-region deploy, cache layer, and Pub/Sub analytics worker.
+- Deferred to later milestones: `users`, `user_urls`, Firebase Auth, Cloud Run multi-region deploy, and Pub/Sub analytics worker.
+- Implemented in this milestone: Caffeine in-process cache for `GET /{shortId}` (TTL and max-size configurable via `YOURL_CACHE_TTL_SECONDS` / `YOURL_CACHE_MAX_SIZE`).
 - Rationale: this keeps the current hot path minimal while frontend, expiration, and later analytics work can build on a stable contract.
 
 Data Model (Bigtable tables and schemas)

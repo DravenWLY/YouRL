@@ -1,5 +1,7 @@
 package org.yourl.backend;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class BigTableService {
@@ -20,12 +23,17 @@ public class BigTableService {
     private static final String SHORT_CODE_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
     private final BigtableProperties properties;
+    private final Cache<String, UrlMapping> resolveCache;
     private final SecureRandom secureRandom = new SecureRandom();
 
     private BigtableDataClient dataClient;
 
-    public BigTableService(BigtableProperties properties) {
+    public BigTableService(BigtableProperties properties, CacheProperties cacheProperties) {
         this.properties = properties;
+        this.resolveCache = Caffeine.newBuilder()
+                .maximumSize(cacheProperties.getMaxSize())
+                .expireAfterWrite(cacheProperties.getTtlSeconds(), TimeUnit.SECONDS)
+                .build();
     }
 
     @PostConstruct
@@ -92,10 +100,24 @@ public class BigTableService {
     }
 
     public UrlMapping resolveUrl(String shortId) {
-        if (dataClient == null) {
+        UrlMapping cached = resolveCache.getIfPresent(shortId);
+        if (cached != null) {
+            return cached;
+        }
+
+        if (!isAvailable()) {
             throw new IllegalStateException("Bigtable is unavailable");
         }
 
+        UrlMapping mapping = fetchFromBigtable(shortId);
+        if (mapping != null) {
+            resolveCache.put(shortId, mapping);
+        }
+        return mapping;
+    }
+
+    // Package-private for testing
+    UrlMapping fetchFromBigtable(String shortId) {
         Row row = dataClient.readRow(properties.getTableId(), shortId);
         if (row == null) {
             return null;
