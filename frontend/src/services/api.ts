@@ -1,4 +1,4 @@
-import { UrlData, ShortenRequest, ShortenResponse, ErrorResponse, ApiError } from '@/types';
+import { ShortenRequest, ShortenResponse, ErrorResponse, ApiError } from '@/types';
 
 const API_BASE = '/api';
 
@@ -42,27 +42,7 @@ export class ApiService {
     return this.handleResponse<ShortenResponse>(response);
   }
 
-  static async getUrlStats(shortCode: string): Promise<UrlData> {
-    const response = await fetch(`${API_BASE}/${shortCode}/stats`);
-    if (!response.ok) {
-      throw {
-        message: 'URL statistics endpoint not implemented yet',
-        status: response.status,
-      } as ApiError;
-    }
-    return this.handleResponse<UrlData>(response);
-  }
 
-  static async getRecentUrls(): Promise<UrlData[]> {
-    const response = await fetch(`${API_BASE}/recent`);
-    if (!response.ok) {
-      throw {
-        message: 'Recent URLs endpoint not implemented yet',
-        status: response.status,
-      } as ApiError;
-    }
-    return this.handleResponse<UrlData[]>(response);
-  }
 
   static redirectToShortUrl(shortId: string): void {
     window.location.href = `/${shortId}`;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserMenu } from './UserMenu';
 import { AuthForm } from './AuthForm';
@@ -37,33 +37,33 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
             
             <div className="flex items-center space-x-4">
-              <Link
+              <NavLink
                 to="/"
-                className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium"
+                className={({ isActive }) =>
+                  `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'text-primary-600 bg-primary-50'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                  }`
+                }
+                end
               >
                 Shorten
-              </Link>
-              <Link
-                to="/stats"
-                className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium"
+              </NavLink>
+              <NavLink
+                to="/dashboard"
+                className={({ isActive }) =>
+                  `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'text-primary-600 bg-primary-50'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                  }`
+                }
               >
-                Stats
-              </Link>
-              <Link
-                to="/recent"
-                className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Recent
-              </Link>
-              
+                Dashboard
+              </NavLink>
               {user ? (
                 <>
-                  <Link
-                    to="/dashboard"
-                    className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium"
-                  >
-                    Dashboard
-                  </Link>
                   <UserMenu />
                 </>
               ) : (
@@ -98,7 +98,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <p className="mt-2">Built with React, TypeScript, and Spring Boot</p>
             <p className="mt-4">
               <a 
-                href="https://github.com/your-username/yourl" 
+                href="https://github.com/DravenWLY/YouRL" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-primary-600 hover:text-primary-800"

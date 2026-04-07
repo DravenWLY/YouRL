@@ -63,30 +63,12 @@ export const UserMenu: React.FC = () => {
           </div>
 
           <Link
-            to="/dashboard"
-            onClick={() => setIsOpen(false)}
-            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-          >
-            Dashboard
-          </Link>
-
-          <Link
             to="/settings"
             onClick={() => setIsOpen(false)}
             className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
           >
             Account Settings
           </Link>
-
-          {!user.isPaid && (
-            <Link
-              to="/upgrade"
-              onClick={() => setIsOpen(false)}
-              className="block px-4 py-2 text-sm text-yellow-700 hover:bg-yellow-50"
-            >
-              Upgrade to Premium
-            </Link>
-          )}
 
           <div className="border-t border-gray-100 my-1"></div>
 

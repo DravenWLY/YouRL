@@ -290,13 +290,17 @@ export const AccountSettingsPage: React.FC = () => {
             </div>
           )}
 
-          <button
-            onClick={handleDeleteAccount}
-            disabled={!deleteConfirm}
-            className="btn-danger w-full"
-          >
-            Delete Account
-          </button>
+            <button
+              onClick={handleDeleteAccount}
+              disabled={!deleteConfirm}
+              className={`max-w-xs mx-auto block px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                deleteConfirm
+                  ? 'text-red-700 bg-red-50 hover:text-red-600 hover:bg-red-100 cursor-pointer'
+                  : 'text-gray-400 bg-gray-100 cursor-not-allowed'
+              }`}
+            >
+              Delete Account
+            </button>
         </div>
       </div>
     </div>
