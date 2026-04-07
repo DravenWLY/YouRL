@@ -2,15 +2,6 @@
 
 A React TypeScript frontend for the YouRL URL shortener service.
 
-## Features
-
-- URL shortening with real-time feedback
-- URL statistics and analytics
-- Recent URLs browsing
-- Responsive design with Tailwind CSS
-- Type-safe development with TypeScript
-- API integration with the Spring Boot backend
-
 ## Tech Stack
 
 - **React 19** with TypeScript
@@ -66,26 +57,14 @@ bun run preview
 frontend/
 ├── src/
 │   ├── components/     # Reusable React components
-│   ├── pages/         # Page components
-│   ├── services/      # API service layer
-│   ├── types/         # TypeScript type definitions
-│   ├── styles/        # Global styles and Tailwind
-│   ├── hooks/         # Custom React hooks
-│   ├── App.tsx        # Main application component
-│   └── index.tsx      # Application entry point
-├── public/            # Static assets
-└── index.html         # HTML template
+│   ├── pages/          # Page components
+│   ├── services/       # API service layer
+│   ├── types/          # TypeScript type definitions
+│   ├── App.tsx         # Main application component
+│   └── index.tsx       # Application entry point
+├── public/             # Static assets
+└── index.html          # HTML template
 ```
-
-## API Integration
-
-The frontend communicates with the backend via a proxy configured in `vite.config.ts`. API calls are routed through `/api` to `http://localhost:8080`.
-
-### Available Endpoints
-
-- `POST /api/shorten` - Shorten a URL
-- `GET /api/{shortCode}/stats` - Get URL statistics
-- `GET /api/recent` - Get recent URLs
 
 ## Development Notes
 
