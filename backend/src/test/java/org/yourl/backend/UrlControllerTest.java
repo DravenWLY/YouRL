@@ -63,6 +63,22 @@ class UrlControllerTest {
     }
 
     @Test
+    void shortenReturnsBadRequestForPastExpiresAt() throws Exception {
+        Mockito.when(bigTableService.isAvailable()).thenReturn(true);
+
+        ShortenRequest request = new ShortenRequest(
+                "https://www.rice.edu",
+                Instant.now().minusSeconds(60)
+        );
+
+        mockMvc.perform(post("/api/shorten")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("expiresAt must be in the future"));
+    }
+
+    @Test
     void shortenReturnsServiceUnavailableWhenBigtableIsDown() throws Exception {
         Mockito.when(bigTableService.isAvailable()).thenReturn(false);
 
@@ -90,4 +106,32 @@ class UrlControllerTest {
                 .andExpect(status().isFound())
                 .andExpect(header().string("Location", "https://www.rice.edu"));
     }
+
+    @Test
+    void resolveReturnsNotFoundWhenShortCodeDoesNotExist() throws Exception {
+        Mockito.when(bigTableService.isAvailable()).thenReturn(true);
+        Mockito.when(bigTableService.resolveUrl("missing1")).thenReturn(null);
+
+        mockMvc.perform(get("/missing1"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void resolveReturnsNotFoundWhenExpiredLinkIsFilteredByService() throws Exception {
+        Mockito.when(bigTableService.isAvailable()).thenReturn(true);
+        Mockito.when(bigTableService.resolveUrl("expired1")).thenReturn(null);
+
+        mockMvc.perform(get("/expired1"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void resolveReturnsNotFoundWhenInactiveLinkIsFilteredByService() throws Exception {
+        Mockito.when(bigTableService.isAvailable()).thenReturn(true);
+        Mockito.when(bigTableService.resolveUrl("inactive1")).thenReturn(null);
+
+        mockMvc.perform(get("/inactive1"))
+                .andExpect(status().isNotFound());
+    }
 }
+
