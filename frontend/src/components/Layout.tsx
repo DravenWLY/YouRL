@@ -1,11 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { UserMenu } from './UserMenu';
+import { AuthForm } from './AuthForm';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const { user } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+
+  const handleAuthClick = (mode: 'login' | 'signup') => {
+    setAuthMode(mode);
+    setShowAuthModal(true);
+  };
+
+  const handleAuthSuccess = () => {
+    setShowAuthModal(false);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <nav className="bg-white shadow-sm border-b border-gray-200">
@@ -39,6 +55,33 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               >
                 Recent
               </Link>
+              
+              {user ? (
+                <>
+                  <Link
+                    to="/dashboard"
+                    className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium"
+                  >
+                    Dashboard
+                  </Link>
+                  <UserMenu />
+                </>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handleAuthClick('login')}
+                    className="btn-secondary text-sm"
+                  >
+                    Log In
+                  </button>
+                  <button
+                    onClick={() => handleAuthClick('signup')}
+                    className="btn-primary text-sm"
+                  >
+                    Sign Up
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -66,6 +109,32 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </div>
       </footer>
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <>
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-40"></div>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="relative">
+              <button
+                onClick={() => setShowAuthModal(false)}
+                className="absolute -top-2 -right-2 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100 z-10"
+                aria-label="Close"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              
+              <AuthForm 
+                initialMode={authMode}
+                onSuccess={handleAuthSuccess}
+                onCancel={() => setShowAuthModal(false)}
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

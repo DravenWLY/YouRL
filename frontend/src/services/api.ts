@@ -24,11 +24,11 @@ export class ApiService {
     return response.json();
   }
 
-  static async shortenUrl(url: string): Promise<ShortenResponse> {
+  static async shortenUrl(url: string, userId?: string | null): Promise<ShortenResponse> {
     const request: ShortenRequest = {
       longUrl: url,
       expiresAt: null,
-      // Note: userId field skipped for now until auth is implemented
+      userId: userId,
     };
 
     const response = await fetch(`${API_BASE}/shorten`, {

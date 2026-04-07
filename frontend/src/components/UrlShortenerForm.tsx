@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ApiService } from '@/services/api';
+import { useCurrentUser } from '@/contexts/AuthContext';
 import { ShortenResponse } from '@/types';
 
 interface UrlShortenerFormProps {
@@ -7,6 +8,7 @@ interface UrlShortenerFormProps {
 }
 
 export const UrlShortenerForm: React.FC<UrlShortenerFormProps> = ({ onShortenSuccess }) => {
+  const user = useCurrentUser();
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +40,7 @@ export const UrlShortenerForm: React.FC<UrlShortenerFormProps> = ({ onShortenSuc
     setLoading(true);
 
     try {
-      const response = await ApiService.shortenUrl(url);
+      const response = await ApiService.shortenUrl(url, user?.userId);
       setResult(response);
       onShortenSuccess?.(response);
       setUrl('');
@@ -116,6 +118,11 @@ export const UrlShortenerForm: React.FC<UrlShortenerFormProps> = ({ onShortenSuc
 
       <div className="mt-6 text-sm text-gray-500">
         <p>Your shortened URLs will redirect to their original destination.</p>
+        {user && (
+          <p className="mt-2 text-primary-600">
+            ✓ This URL will be associated with your account ({user.username})
+          </p>
+        )}
       </div>
     </div>
   );

@@ -10,7 +10,7 @@ export interface UrlData {
 export interface ShortenRequest {
   longUrl: string;
   expiresAt?: string | null; // ISO date string or null
-  // Note: userId field exists in backend but we'll skip for now until auth is implemented
+  userId?: string | null;
 }
 
 // Backend DTO: ShortenResponse.java
@@ -31,4 +31,35 @@ export interface ErrorResponse {
 export interface ApiError {
   message: string;
   status: number;
+}
+
+// Backend DTO: UserAccount.java
+export interface UserAccount {
+  username: string;
+  userId: string;
+  password: string; // Note: In real app, never store/display plain password
+  isPaid: boolean;
+}
+
+// Backend DTO: AuthRequests.java records
+export interface SignupRequest {
+  username: string;
+  password: string;
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface PasswordChangeRequest {
+  oldPassword: string;
+  newPassword: string;
+}
+
+// Authentication state
+export interface AuthState {
+  user: UserAccount | null;
+  loading: boolean;
+  error: string | null;
 }
