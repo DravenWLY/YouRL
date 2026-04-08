@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ApiService } from '@/services/api';
+import { AnonymousUrlService } from '@/services/anonymousUrls';
 import { useCurrentUser } from '@/contexts/AuthContext';
 import { ShortenResponse } from '@/types';
 
@@ -41,6 +42,9 @@ export const UrlShortenerForm: React.FC<UrlShortenerFormProps> = ({ onShortenSuc
 
     try {
       const response = await ApiService.shortenUrl(url, user?.userId);
+      if (!user) {
+        AnonymousUrlService.add(response.shortId);
+      }
       setResult(response);
       onShortenSuccess?.(response);
       setUrl('');
@@ -113,6 +117,15 @@ export const UrlShortenerForm: React.FC<UrlShortenerFormProps> = ({ onShortenSuc
 <p className="text-sm text-gray-600 mt-2">
              Short ID: <code className="font-mono bg-gray-100 px-2 py-1 rounded">{result.shortId}</code>
            </p>
+          {user ? (
+            <p className="text-sm text-green-700 mt-3">
+              Saved to your dashboard.
+            </p>
+          ) : (
+            <p className="text-sm text-amber-700 mt-3">
+              This short link was created anonymously. Log in to save future links to your dashboard.
+            </p>
+          )}
         </div>
       )}
 
@@ -121,6 +134,11 @@ export const UrlShortenerForm: React.FC<UrlShortenerFormProps> = ({ onShortenSuc
         {user && (
           <p className="mt-2 text-primary-600">
             ✓ This URL will be associated with your account ({user.username})
+          </p>
+        )}
+        {!user && (
+          <p className="mt-2">
+            You can shorten links without an account. Log in if you want to save and manage them later.
           </p>
         )}
       </div>

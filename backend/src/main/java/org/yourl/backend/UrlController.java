@@ -9,6 +9,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Instant;
+import java.util.List;
 
 @RestController
 public class UrlController {
@@ -41,20 +42,60 @@ public class UrlController {
 
         UrlMapping mapping = bigTableService.shortenUrl(request); // Note: we pass the whole request now
 
-        String shortUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path("/{shortId}")
-                .buildAndExpand(mapping.shortId())
-                .toUriString();
-
         // Including mapping.userId() in the response constructor
         return ResponseEntity.ok(new ShortenResponse(
                 mapping.shortId(),
-                shortUrl,
+                buildShortUrl(mapping.shortId()),
                 mapping.longUrl(),
                 mapping.userId(), // Added this line
                 mapping.createdAt(),
                 mapping.expiresAt()
         ));
+    }
+
+    @GetMapping(path = "/api/urls", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> listUserUrls(@RequestParam String userId) {
+        if (!bigTableService.isAvailable()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(new ErrorResponse("Bigtable is unavailable"));
+        }
+
+        if (userId == null || userId.isBlank()) {
+            return ResponseEntity.badRequest().body(new ErrorResponse("userId is required"));
+        }
+
+        List<UserUrlSummaryResponse> responses = bigTableService.listUrlsForUser(userId).stream()
+                .map(summary -> new UserUrlSummaryResponse(
+                        summary.shortId(),
+                        buildShortUrl(summary.shortId()),
+                        summary.longUrl(),
+                        summary.createdAt(),
+                        summary.clickCount(),
+                        summary.lastAccessTs(),
+                        summary.active()
+                ))
+                .toList();
+
+        return ResponseEntity.ok(responses);
+    }
+
+    @PostMapping(path = "/api/urls/claim", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> claimAnonymousUrls(@RequestBody ClaimUrlsRequest request) {
+        if (!bigTableService.isAvailable()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(new ErrorResponse("Bigtable is unavailable"));
+        }
+
+        if (request == null || request.userId() == null || request.userId().isBlank()) {
+            return ResponseEntity.badRequest().body(new ErrorResponse("userId is required"));
+        }
+
+        if (request.shortIds() == null || request.shortIds().isEmpty()) {
+            return ResponseEntity.badRequest().body(new ErrorResponse("shortIds is required"));
+        }
+
+        int claimedCount = bigTableService.claimUrlsForUser(request.userId(), request.shortIds());
+        return ResponseEntity.ok(new ClaimUrlsResponse(claimedCount));
     }
 
     // API Method b: resolve_url
@@ -85,5 +126,12 @@ public class UrlController {
         } catch (URISyntaxException e) {
             return false;
         }
+    }
+
+    private String buildShortUrl(String shortId) {
+        return ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path("/{shortId}")
+                .buildAndExpand(shortId)
+                .toUriString();
     }
 }

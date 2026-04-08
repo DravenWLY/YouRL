@@ -9,7 +9,6 @@ export interface UrlData {
 // Backend DTO: ShortenRequest.java
 export interface ShortenRequest {
   longUrl: string;
-  expiresAt?: string | null; // ISO date string or null
   userId?: string | null;
 }
 
@@ -20,7 +19,6 @@ export interface ShortenResponse {
   longUrl: string;
   userId?: string | null;
   createdAt: string; // ISO date string
-  expiresAt?: string | null; // ISO date string or null
 }
 
 // Backend DTO: ErrorResponse.java
@@ -28,8 +26,7 @@ export interface ErrorResponse {
   error: string;
 }
 
-export interface ApiError {
-  message: string;
+export interface ApiError extends Error {
   status: number;
 }
 
@@ -37,8 +34,26 @@ export interface ApiError {
 export interface UserAccount {
   username: string;
   userId: string;
-  password: string; // Note: In real app, never store/display plain password
   isPaid: boolean;
+}
+
+export interface UserUrlSummary {
+  shortId: string;
+  shortUrl: string;
+  longUrl: string;
+  createdAt: string;
+  clickCount: number;
+  lastAccessTs?: string | null;
+  active: boolean;
+}
+
+export interface ClaimUrlsRequest {
+  userId: string;
+  shortIds: string[];
+}
+
+export interface ClaimUrlsResponse {
+  claimedCount: number;
 }
 
 // Backend DTO: AuthRequests.java records

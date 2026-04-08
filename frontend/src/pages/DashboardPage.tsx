@@ -1,8 +1,53 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useCurrentUser } from '@/contexts/AuthContext';
+import { ApiService } from '@/services/api';
+import { UserUrlSummary } from '@/types';
 
 export const DashboardPage: React.FC = () => {
   const user = useCurrentUser();
+  const [urls, setUrls] = useState<UserUrlSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadUrls = async () => {
+      if (!user?.userId) {
+        setUrls([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const summaries = await ApiService.getUserUrls(user.userId);
+        if (!cancelled) {
+          setUrls(summaries);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadUrls();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.userId]);
+
+  const totalClicks = useMemo(
+    () => urls.reduce((sum, url) => sum + url.clickCount, 0),
+    [urls]
+  );
 
   return (
     <div className="space-y-8">
@@ -40,16 +85,16 @@ export const DashboardPage: React.FC = () => {
         {/* Quick Stats Card */}
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h3>
-          <div className="space-y-4">
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div className="text-3xl font-bold text-primary-600">0</div>
-              <div className="text-gray-600 mt-1">URLs Created</div>
+            <div className="space-y-4">
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <div className="text-3xl font-bold text-primary-600">{urls.length}</div>
+                <div className="text-gray-600 mt-1">URLs Created</div>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <div className="text-3xl font-bold text-primary-600">{totalClicks}</div>
+                <div className="text-gray-600 mt-1">Total Clicks</div>
+              </div>
             </div>
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div className="text-3xl font-bold text-primary-600">0</div>
-              <div className="text-gray-600 mt-1">Total Clicks</div>
-            </div>
-          </div>
         </div>
 
         {/* Quick Actions Card */}
@@ -70,7 +115,7 @@ export const DashboardPage: React.FC = () => {
             </a>
             {!user?.isPaid && (
               <a
-                href="/upgrade"
+                href="/settings"
                 className="block w-full text-center bg-yellow-100 text-yellow-800 hover:bg-yellow-200 py-2 px-4 rounded-lg font-medium transition-colors"
               >
                 Upgrade to Premium
@@ -80,36 +125,70 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Empty State for URLs */}
       <div className="card">
-        <div className="text-center py-12">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-            </svg>
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <div>
+            <h3 className="text-xl font-semibold text-gray-900">Your URLs</h3>
+            <p className="text-gray-600 mt-1">This is the current prototype view of links associated with your account.</p>
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No URLs Yet</h3>
-          <p className="text-gray-600 max-w-md mx-auto mb-6">
-            Your shortened URLs will appear here once you create them. The dashboard feature is coming soon!
-          </p>
-          <div className="space-y-3 max-w-sm mx-auto">
-            <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-sm">
-              <p className="font-medium">Coming Soon:</p>
-              <ul className="mt-2 space-y-1">
-                <li>• View all your shortened URLs</li>
-                <li>• See click statistics for each URL</li>
-                <li>• Manage URL expiration dates</li>
-                <li>• Delete or deactivate URLs</li>
-              </ul>
-            </div>
-            <a
-              href="/"
-              className="block w-full btn-primary"
-            >
-              Create Your First Short URL
-            </a>
-          </div>
+          <a
+            href="/"
+            className="btn-primary whitespace-nowrap"
+          >
+            Create New Short URL
+          </a>
         </div>
+
+        {loading ? (
+          <p className="text-gray-600">Loading URLs...</p>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        ) : urls.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No URLs Yet</h3>
+            <p className="text-gray-600 max-w-md mx-auto">
+              Your shortened URLs will appear here once you create them.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {urls.map((url) => (
+              <div key={url.shortId} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                  <div className="min-w-0">
+                    <a
+                      href={url.shortUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium text-primary-700 hover:underline break-all"
+                    >
+                      {url.shortUrl}
+                    </a>
+                    <p className="text-sm text-gray-600 mt-1 break-all">{url.longUrl}</p>
+                  </div>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${url.active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}>
+                    {url.active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-gray-600">
+                  <div>Created: {new Date(url.createdAt).toLocaleString()}</div>
+                  <div>Clicks: {url.clickCount}</div>
+                  <div>
+                    Last Access:{' '}
+                    {url.lastAccessTs ? new Date(url.lastAccessTs).toLocaleString() : 'No clicks yet'}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Info Cards */}
@@ -124,7 +203,6 @@ export const DashboardPage: React.FC = () => {
             <ul className="space-y-2 pl-5 list-disc">
               <li>All URLs you've created</li>
               <li>Click statistics for each URL</li>
-              <li>Expiration dates and status</li>
               <li>Options to edit or delete URLs</li>
             </ul>
           </div>
@@ -157,7 +235,7 @@ export const DashboardPage: React.FC = () => {
               </div>
               <div>
                 <h4 className="font-medium text-gray-900">Track Performance</h4>
-                <p className="text-gray-600 text-sm mt-1">Coming soon: See how many clicks each URL gets</p>
+                <p className="text-gray-600 text-sm mt-1">See click counts update as your short URLs are used</p>
               </div>
             </div>
           </div>

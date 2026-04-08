@@ -136,4 +136,32 @@ class UrlControllerTest {
         mockMvc.perform(get("/inactive1"))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void claimUrlsReturnsClaimedCount() throws Exception {
+        Mockito.when(bigTableService.isAvailable()).thenReturn(true);
+        Mockito.when(bigTableService.claimUrlsForUser(Mockito.eq("user-1"), Mockito.anyList()))
+                .thenReturn(2);
+
+        ClaimUrlsRequest request = new ClaimUrlsRequest("user-1", java.util.List.of("abc1234", "def5678"));
+
+        mockMvc.perform(post("/api/urls/claim")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.claimedCount").value(2));
+    }
+
+    @Test
+    void claimUrlsReturnsBadRequestForMissingShortIds() throws Exception {
+        Mockito.when(bigTableService.isAvailable()).thenReturn(true);
+
+        ClaimUrlsRequest request = new ClaimUrlsRequest("user-1", java.util.List.of());
+
+        mockMvc.perform(post("/api/urls/claim")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("shortIds is required"));
+    }
 }

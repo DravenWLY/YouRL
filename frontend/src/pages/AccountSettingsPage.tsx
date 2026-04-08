@@ -168,7 +168,6 @@ export const AccountSettingsPage: React.FC = () => {
                   <li>Advanced analytics dashboard</li>
                   <li>Custom short code creation</li>
                   <li>Priority customer support</li>
-                  <li>Extended URL expiration options</li>
                 </ul>
               </div>
             </div>
@@ -180,8 +179,8 @@ export const AccountSettingsPage: React.FC = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Security</h3>
           <div className="space-y-4">
             <div className="text-gray-600 text-sm">
-              <p>Your password is stored securely. You can change it here.</p>
-              <p className="mt-2">Note: In a production app, passwords would be hashed.</p>
+              <p>This prototype uses simplified account handling for local development.</p>
+              <p className="mt-2">Password storage and authentication still need production hardening before any real deployment.</p>
             </div>
           </div>
         </div>

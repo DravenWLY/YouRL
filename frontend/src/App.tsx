@@ -14,11 +14,7 @@ const App: React.FC = () => {
       <Router>
         <Layout>
           <Routes>
-            <Route path="/" element={
-              <ProtectedRoute requireAuth>
-                <HomePage />
-              </ProtectedRoute>
-            } />
+            <Route path="/" element={<HomePage />} />
 
             <Route path="/dashboard" element={
               <ProtectedRoute requireAuth>

@@ -50,20 +50,20 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               >
                 Shorten
               </NavLink>
-              <NavLink
-                to="/dashboard"
-                className={({ isActive }) =>
-                  `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'text-primary-600 bg-primary-50'
-                      : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
-                  }`
-                }
-              >
-                Dashboard
-              </NavLink>
               {user ? (
                 <>
+                  <NavLink
+                    to="/dashboard"
+                    className={({ isActive }) =>
+                      `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'text-primary-600 bg-primary-50'
+                          : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                      }`
+                    }
+                  >
+                    Dashboard
+                  </NavLink>
                   <UserMenu />
                 </>
               ) : (

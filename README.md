@@ -22,10 +22,13 @@ YouRL is a URL shortener built for COMP 539. Our target architecture is:
 ## Current MVP Status
 
 Current local MVP supports:
+- user signup, login, password change, account upgrade, and account deletion
 - `POST /api/shorten` to create a short URL
 - `GET /{shortId}` to resolve and redirect
+- `GET /api/urls?userId=...` to populate the dashboard
 - Bigtable emulator for local storage
 - `urls` table with `meta` and `stats` column families
+- `users` table for prototype account data
 
 Current request contract:
 - `POST /api/shorten` uses JSON
@@ -87,7 +90,7 @@ ok
 ```bash
 curl -i -X POST http://localhost:8080/api/shorten \
   -H "Content-Type: application/json" \
-  --data '{"longUrl":"https://www.rice.edu","expiresAt":null}'
+  --data '{"longUrl":"https://www.rice.edu","userId":"abc12"}'
 ```
 
 ### Example: resolve a short URL
@@ -118,10 +121,9 @@ GitHub Actions currently does three things on PRs to `main`:
 
 ## Near-Term Next Steps
 
-- frontend integration against the frozen MVP contract
-- expiration behavior on top of `meta:expires_at` and `meta:is_active`
+- finish prototype integration and remove remaining placeholder UI
 - logging / metrics v1 for shorten and resolve flows
-- deployment/CD skeleton for later GCP rollout
+- backend deploy/CD once the working prototype is stable
 
 ## License
 

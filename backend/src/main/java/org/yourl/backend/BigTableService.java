@@ -2,18 +2,23 @@ package org.yourl.backend;
 
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
+import com.google.cloud.bigtable.admin.v2.models.ModifyColumnFamiliesRequest;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
+import com.google.cloud.bigtable.data.v2.models.Query;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import java.io.IOException;
 
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class BigTableService {
@@ -32,58 +37,52 @@ public class BigTableService {
     @PostConstruct
     public void init() {
         try {
-            // 1. Initialize the Admin Client to manage tables
             try (BigtableTableAdminClient adminClient = BigtableTableAdminClient.create(
                     properties.getProjectId(),
                     properties.getInstanceId()
             )) {
-                // Initialize Links Table
-                if (!adminClient.exists(properties.getTableId())) {
-                    adminClient.createTable(CreateTableRequest.of(properties.getTableId())
-                            .addFamily(properties.getMetaFamily()));
-                }
-                
-                // Initialize Users Table
-                if (!adminClient.exists(properties.getUsersTableId())) {
-                    adminClient.createTable(CreateTableRequest.of(properties.getUsersTableId())
-                            .addFamily(properties.getUserInfoFamily()));
-                }
+                ensureUrlsTable(adminClient);
+                ensureUsersTable(adminClient);
             }
+        } catch (Exception e) {
+            logger.warn("Could not verify Bigtable tables during startup", e);
+        }
 
-            // 2. Initialize the Data Client
+        try {
             this.dataClient = BigtableDataClient.create(properties.getProjectId(), properties.getInstanceId());
-
-        } catch (IOException e) {
-            logger.error("Failed to initialize Bigtable clients or tables", e);
+        } catch (Exception e) {
+            logger.error("Bigtable data client unavailable; starting without storage", e);
+            this.dataClient = null;
         }
     }
 
     public UrlMapping shortenUrl(ShortenRequest request) {
+        requireAvailability();
+
         String shortId = generateShortCode();
         Instant now = Instant.now();
-        
+
         RowMutation mutation = RowMutation.create(properties.getTableId(), shortId)
                 .setCell(properties.getMetaFamily(), "long_url", request.longUrl())
                 .setCell(properties.getMetaFamily(), "created_at", now.toString())
-                .setCell(properties.getMetaFamily(), "is_active", "true");
+                .setCell(properties.getMetaFamily(), "is_active", "true")
+                .setCell(properties.getStatsFamily(), "click_count", "0");
 
         if (request.expiresAt() != null) {
             mutation.setCell(properties.getMetaFamily(), "expires_at", request.expiresAt().toString());
         }
-        
+
         if (request.userId() != null) {
             mutation.setCell(properties.getMetaFamily(), "user_id", request.userId());
         }
 
         dataClient.mutateRow(mutation);
-        
+
         return new UrlMapping(shortId, request.longUrl(), request.userId(), now, request.expiresAt(), true);
     }
 
     public UrlMapping resolveUrl(String shortId) {
-        if (dataClient == null) {
-            throw new IllegalStateException("Bigtable is unavailable");
-        }
+        requireAvailability();
 
         Row row = dataClient.readRow(properties.getTableId(), shortId);
         if (row == null) {
@@ -99,6 +98,7 @@ public class BigTableService {
             return null;
         }
 
+        recordResolveStats(shortId, row);
         return mapping;
     }
 
@@ -106,18 +106,85 @@ public class BigTableService {
         return dataClient != null;
     }
 
+    public List<UserUrlSummary> listUrlsForUser(String userId) {
+        requireAvailability();
+
+        List<UserUrlSummary> summaries = new ArrayList<>();
+        for (Row row : dataClient.readRows(Query.create(properties.getTableId()))) {
+            String ownerUserId = readCellAsString(row, properties.getMetaFamily(), "user_id");
+            if (!userId.equals(ownerUserId)) {
+                continue;
+            }
+
+            String shortId = row.getKey().toStringUtf8();
+            UrlMapping mapping = toUrlMapping(shortId, row);
+            long clickCount = parseLongOrZero(readCellAsString(row, properties.getStatsFamily(), "click_count"));
+            Instant lastAccessTs = parseInstant(readCellAsString(row, properties.getStatsFamily(), "last_access_ts"));
+
+            summaries.add(new UserUrlSummary(
+                    shortId,
+                    mapping.longUrl(),
+                    mapping.createdAt(),
+                    clickCount,
+                    lastAccessTs,
+                    mapping.active()
+            ));
+        }
+
+        summaries.sort(Comparator.comparing(
+                UserUrlSummary::createdAt,
+                Comparator.nullsLast(Comparator.reverseOrder())
+        ));
+        return summaries;
+    }
+
+    public int claimUrlsForUser(String userId, List<String> shortIds) {
+        requireAvailability();
+
+        if (userId == null || userId.isBlank() || shortIds == null || shortIds.isEmpty()) {
+            return 0;
+        }
+
+        int claimedCount = 0;
+        Set<String> uniqueShortIds = new LinkedHashSet<>(shortIds);
+        for (String shortId : uniqueShortIds) {
+            if (shortId == null || shortId.isBlank()) {
+                continue;
+            }
+
+            Row row = dataClient.readRow(properties.getTableId(), shortId);
+            if (row == null) {
+                continue;
+            }
+
+            String existingUserId = readCellAsString(row, properties.getMetaFamily(), "user_id");
+            if (existingUserId != null && !existingUserId.isBlank() && !userId.equals(existingUserId)) {
+                continue;
+            }
+
+            if (userId.equals(existingUserId)) {
+                claimedCount++;
+                continue;
+            }
+
+            RowMutation claimMutation = RowMutation.create(properties.getTableId(), shortId)
+                    .setCell(properties.getMetaFamily(), "user_id", userId);
+            dataClient.mutateRow(claimMutation);
+            claimedCount++;
+        }
+
+        return claimedCount;
+    }
+
     private UrlMapping toUrlMapping(String shortId, Row row) {
         String longUrl = readCellAsString(row, properties.getMetaFamily(), "long_url");
-        
-        //Read the userId from the row
         String userId = readCellAsString(row, properties.getMetaFamily(), "user_id");
-        
         Instant createdAt = parseInstant(readCellAsString(row, properties.getMetaFamily(), "created_at"));
         Instant expiresAt = parseInstant(readCellAsString(row, properties.getMetaFamily(), "expires_at"));
         String activeText = readCellAsString(row, properties.getMetaFamily(), "is_active");
         boolean active = activeText == null || Boolean.parseBoolean(activeText);
-       
-        return new UrlMapping(shortId, longUrl, userId, createdAt, expiresAt, active);    
+
+        return new UrlMapping(shortId, longUrl, userId, createdAt, expiresAt, active);
     }
 
     private String readCellAsString(Row row, String family, String qualifier) {
@@ -135,6 +202,18 @@ public class BigTableService {
         return Instant.parse(raw);
     }
 
+    private long parseLongOrZero(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return 0L;
+        }
+        try {
+            return Long.parseLong(raw);
+        } catch (NumberFormatException e) {
+            logger.warn("Could not parse numeric Bigtable cell value '{}'", raw, e);
+            return 0L;
+        }
+    }
+
     private String generateShortCode() {
         StringBuilder builder = new StringBuilder(properties.getShortCodeLength());
         for (int i = 0; i < properties.getShortCodeLength(); i++) {
@@ -145,34 +224,37 @@ public class BigTableService {
     }
 
     // --- User Management Methods ---
-    
+
     public UserAccount createUser(String username, String password) {
+        requireAvailability();
         if (getUser(username) != null) {
             throw new IllegalArgumentException("Username already exists");
         }
-        
+
         String userId = generateUserId();
         RowMutation mutation = RowMutation.create(properties.getUsersTableId(), username)
                 .setCell(properties.getUserInfoFamily(), "user_id", userId)
                 .setCell(properties.getUserInfoFamily(), "password", password) // Note: In production, hash this!
                 .setCell(properties.getUserInfoFamily(), "is_paid", "false");
-                
+
         dataClient.mutateRow(mutation);
         return new UserAccount(username, userId, password, false);
     }
 
     public UserAccount getUser(String username) {
+        requireAvailability();
         Row row = dataClient.readRow(properties.getUsersTableId(), username);
         if (row == null) return null;
-        
+
         String userId = readCellAsString(row, properties.getUserInfoFamily(), "user_id");
         String password = readCellAsString(row, properties.getUserInfoFamily(), "password");
         boolean isPaid = Boolean.parseBoolean(readCellAsString(row, properties.getUserInfoFamily(), "is_paid"));
-        
+
         return new UserAccount(username, userId, password, isPaid);
     }
 
     public void updateUser(UserAccount user) {
+        requireAvailability();
         RowMutation mutation = RowMutation.create(properties.getUsersTableId(), user.username())
                 .setCell(properties.getUserInfoFamily(), "password", user.password())
                 .setCell(properties.getUserInfoFamily(), "is_paid", String.valueOf(user.isPaid()));
@@ -180,6 +262,7 @@ public class BigTableService {
     }
 
     public void deleteUser(String username) {
+        requireAvailability();
         RowMutation mutation = RowMutation.create(properties.getUsersTableId(), username).deleteRow();
         dataClient.mutateRow(mutation);
     }
@@ -191,5 +274,52 @@ public class BigTableService {
         }
         // Basic collision check (in a real app, you'd query a reverse index, but this is fine for the prototype)
         return builder.toString();
+    }
+
+    private void requireAvailability() {
+        if (dataClient == null) {
+            throw new IllegalStateException("Bigtable is unavailable");
+        }
+    }
+
+    private void recordResolveStats(String shortId, Row row) {
+        long clickCount = parseLongOrZero(readCellAsString(row, properties.getStatsFamily(), "click_count"));
+        Instant now = Instant.now();
+
+        RowMutation statsMutation = RowMutation.create(properties.getTableId(), shortId)
+                .setCell(properties.getStatsFamily(), "click_count", Long.toString(clickCount + 1))
+                .setCell(properties.getStatsFamily(), "last_access_ts", now.toString());
+
+        dataClient.mutateRow(statsMutation);
+    }
+
+    private void ensureUrlsTable(BigtableTableAdminClient adminClient) {
+        if (!adminClient.exists(properties.getTableId())) {
+            adminClient.createTable(CreateTableRequest.of(properties.getTableId())
+                    .addFamily(properties.getMetaFamily())
+                    .addFamily(properties.getStatsFamily()));
+            return;
+        }
+
+        try {
+            boolean hasStatsFamily = adminClient.getTable(properties.getTableId())
+                    .getColumnFamilies()
+                    .stream()
+                    .anyMatch(columnFamily -> properties.getStatsFamily().equals(columnFamily.getId()));
+
+            if (!hasStatsFamily) {
+                adminClient.modifyFamilies(ModifyColumnFamiliesRequest.of(properties.getTableId())
+                        .addFamily(properties.getStatsFamily()));
+            }
+        } catch (Exception e) {
+            logger.warn("Could not ensure stats family exists for table {}", properties.getTableId(), e);
+        }
+    }
+
+    private void ensureUsersTable(BigtableTableAdminClient adminClient) {
+        if (!adminClient.exists(properties.getUsersTableId())) {
+            adminClient.createTable(CreateTableRequest.of(properties.getUsersTableId())
+                    .addFamily(properties.getUserInfoFamily()));
+        }
     }
 }

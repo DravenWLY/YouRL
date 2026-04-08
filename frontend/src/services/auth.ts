@@ -4,6 +4,26 @@ const AUTH_STORAGE_KEY = 'youRL_auth';
 const API_BASE = '/api/users';
 
 export class AuthService {
+  private static buildApiError(message: string, status: number): ApiError {
+    const error = new Error(message) as ApiError;
+    error.status = status;
+    return error;
+  }
+
+  private static async parseError(response: Response, defaultPrefix: string): Promise<never> {
+    let message = `${defaultPrefix}: ${response.statusText}`;
+    const contentType = response.headers.get('content-type') ?? '';
+
+    if (contentType.includes('application/json')) {
+      const errorData = await response.json().catch(() => null) as { error?: string } | null;
+      if (errorData?.error) {
+        message = `${defaultPrefix}: ${errorData.error}`;
+      }
+    }
+
+    throw this.buildApiError(message, response.status);
+  }
+
   private static getStoredUser(): UserAccount | null {
     try {
       const stored = sessionStorage.getItem(AUTH_STORAGE_KEY);
@@ -37,18 +57,7 @@ export class AuthService {
     });
 
     if (!response.ok) {
-      try {
-        const errorData = await response.json();
-        throw {
-          message: `Signup failed: ${errorData.error}`,
-          status: response.status,
-        } as ApiError;
-      } catch {
-        throw {
-          message: `Signup failed: ${response.statusText}`,
-          status: response.status,
-        } as ApiError;
-      }
+      await this.parseError(response, 'Signup failed');
     }
 
     const user: UserAccount = await response.json();
@@ -68,18 +77,7 @@ export class AuthService {
     });
 
     if (!response.ok) {
-      try {
-        const errorData = await response.json();
-        throw {
-          message: `Login failed: ${errorData.error}`,
-          status: response.status,
-        } as ApiError;
-      } catch {
-        throw {
-          message: `Login failed: ${response.statusText}`,
-          status: response.status,
-        } as ApiError;
-      }
+      await this.parseError(response, 'Login failed');
     }
 
     const user: UserAccount = await response.json();
@@ -103,18 +101,7 @@ export class AuthService {
     });
 
     if (!response.ok) {
-      try {
-        const errorData = await response.json();
-        throw {
-          message: `Password change failed: ${errorData.error}`,
-          status: response.status,
-        } as ApiError;
-      } catch {
-        throw {
-          message: `Password change failed: ${response.statusText}`,
-          status: response.status,
-        } as ApiError;
-      }
+      await this.parseError(response, 'Password change failed');
     }
 
     const user: UserAccount = await response.json();
@@ -135,18 +122,7 @@ export class AuthService {
     });
 
     if (!response.ok) {
-      try {
-        const errorData = await response.json();
-        throw {
-          message: `Upgrade failed: ${errorData.error}`,
-          status: response.status,
-        } as ApiError;
-      } catch {
-        throw {
-          message: `Upgrade failed: ${response.statusText}`,
-          status: response.status,
-        } as ApiError;
-      }
+      await this.parseError(response, 'Upgrade failed');
     }
 
     const user: UserAccount = await response.json();
@@ -164,18 +140,7 @@ export class AuthService {
     });
 
     if (!response.ok) {
-      try {
-        const errorData = await response.json();
-        throw {
-          message: `Account deletion failed: ${errorData.error}`,
-          status: response.status,
-        } as ApiError;
-      } catch {
-        throw {
-          message: `Account deletion failed: ${response.statusText}`,
-          status: response.status,
-        } as ApiError;
-      }
+      await this.parseError(response, 'Account deletion failed');
     }
 
     // Logout if it's the current user

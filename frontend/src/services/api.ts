@@ -1,25 +1,35 @@
-import { ShortenRequest, ShortenResponse, ErrorResponse, ApiError } from '@/types';
+import {
+  ShortenRequest,
+  ShortenResponse,
+  ErrorResponse,
+  ApiError,
+  UserUrlSummary,
+  ClaimUrlsRequest,
+  ClaimUrlsResponse,
+} from '@/types';
 
 const API_BASE = '/api';
 
 export class ApiService {
-  private static async handleResponse<T>(response: Response): Promise<T> {
+  private static buildApiError(message: string, status: number): ApiError {
+    const error = new Error(message) as ApiError;
+    error.status = status;
+    return error;
+  }
+
+  private static async handleResponse<T>(response: Response, defaultPrefix: string): Promise<T> {
     if (!response.ok) {
-      try {
-        // Try to parse backend's error response
-        const errorData: ErrorResponse = await response.json();
-        console.error(`Backend error (${response.status}):`, errorData.error);
-        throw {
-          message: `Failed to shorten URL: ${errorData.error}`,
-          status: response.status,
-        } as ApiError;
-      } catch {
-        // Fallback to generic error if JSON parsing fails
-        throw {
-          message: `Failed to shorten URL: ${response.statusText}`,
-          status: response.status,
-        } as ApiError;
+      let message = `${defaultPrefix}: ${response.statusText}`;
+      const contentType = response.headers.get('content-type') ?? '';
+
+      if (contentType.includes('application/json')) {
+        const errorData = await response.json().catch(() => null) as ErrorResponse | null;
+        if (errorData?.error) {
+          message = `${defaultPrefix}: ${errorData.error}`;
+        }
       }
+
+      throw this.buildApiError(message, response.status);
     }
     return response.json();
   }
@@ -27,7 +37,6 @@ export class ApiService {
   static async shortenUrl(url: string, userId?: string | null): Promise<ShortenResponse> {
     const request: ShortenRequest = {
       longUrl: url,
-      expiresAt: null,
       userId: userId,
     };
 
@@ -39,10 +48,26 @@ export class ApiService {
       body: JSON.stringify(request),
     });
 
-    return this.handleResponse<ShortenResponse>(response);
+    return this.handleResponse<ShortenResponse>(response, 'Failed to shorten URL');
   }
 
+  static async getUserUrls(userId: string): Promise<UserUrlSummary[]> {
+    const response = await fetch(`${API_BASE}/urls?userId=${encodeURIComponent(userId)}`);
+    return this.handleResponse<UserUrlSummary[]>(response, 'Failed to load dashboard URLs');
+  }
 
+  static async claimAnonymousUrls(userId: string, shortIds: string[]): Promise<ClaimUrlsResponse> {
+    const request: ClaimUrlsRequest = { userId, shortIds };
+    const response = await fetch(`${API_BASE}/urls/claim`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+
+    return this.handleResponse<ClaimUrlsResponse>(response, 'Failed to claim anonymous URLs');
+  }
 
   static redirectToShortUrl(shortId: string): void {
     window.location.href = `/${shortId}`;

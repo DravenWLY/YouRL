@@ -1,5 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { AuthService } from '@/services/auth';
+import { ApiService } from '@/services/api';
+import { AnonymousUrlService } from '@/services/anonymousUrls';
 import { UserAccount, AuthState } from '@/types';
 
 interface AuthContextType {
@@ -63,10 +65,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     initializeAuth();
   }, []);
 
+  const claimAnonymousUrls = async (userId: string): Promise<void> => {
+    const shortIds = AnonymousUrlService.list();
+    if (shortIds.length === 0) {
+      return;
+    }
+
+    try {
+      const result = await ApiService.claimAnonymousUrls(userId, shortIds);
+      if (result.claimedCount > 0) {
+        AnonymousUrlService.clear();
+      }
+    } catch (error) {
+      console.warn('Failed to claim anonymous URLs after authentication', error);
+    }
+  };
+
   const signup = async (username: string, password: string): Promise<void> => {
     setAuthState(prev => ({ ...prev, loading: true, error: null }));
     try {
       const user = await AuthService.signup(username, password);
+      await claimAnonymousUrls(user.userId);
       setAuthState({
         user,
         loading: false,
@@ -86,6 +105,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setAuthState(prev => ({ ...prev, loading: true, error: null }));
     try {
       const user = await AuthService.login(username, password);
+      await claimAnonymousUrls(user.userId);
       setAuthState({
         user,
         loading: false,
