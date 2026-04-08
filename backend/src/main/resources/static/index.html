@@ -1,34 +1,225 @@
 <!DOCTYPE html>
-<html>
-<head><title>YouRL - Shorten Your Life</title></head>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>YouRL - Shorten Your Life</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; }
+        .hidden { display: none; }
+        .section { border: 1px solid #ddd; padding: 20px; border-radius: 8px; margin-bottom: 20px; background: #f9f9f9; }
+        input[type="text"], input[type="password"] { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; }
+        button { padding: 10px 15px; background: #0056b3; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #004494; }
+        .error { color: red; font-size: 0.9em; margin-top: 5px; }
+        .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    </style>
+</head>
 <body>
-    <h1>YouRL Shortener</h1>
-    <input type="text" id="longUrl" placeholder="Paste your long URL here">
-    <input type="datetime-local" id="expiresAt" placeholder="Optional expiration">
-    <button onclick="shorten()">Shorten!</button>
-    <p id="result"></p>
+
+    <div class="nav">
+        <h2>YouRL Shortener</h2>
+        <div id="navLinks">
+            <button onclick="showSection('loginSection')">Login</button>
+            <button onclick="showSection('signupSection')">Sign Up</button>
+        </div>
+        <div id="loggedInNav" class="hidden">
+            <span id="welcomeMessage"></span>
+            <button onclick="showSection('accountSection')">Account</button>
+            <button onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <div id="appSection" class="section">
+        <h3>Create a Short Link</h3>
+        <input type="text" id="longUrl" placeholder="Paste your long URL here (e.g., https://google.com)">
+        <button onclick="shorten()">Shorten!</button>
+        <p id="result"></p>
+    </div>
+
+    <div id="loginSection" class="section hidden">
+        <h3>Login</h3>
+        <input type="text" id="loginUser" placeholder="Username">
+        <input type="password" id="loginPass" placeholder="Password">
+        <button onclick="login()">Login</button>
+        <p id="loginError" class="error"></p>
+    </div>
+
+    <div id="signupSection" class="section hidden">
+        <h3>Sign Up</h3>
+        <input type="text" id="signupUser" placeholder="Username">
+        <input type="password" id="signupPass" placeholder="Password">
+        <label>
+            <input type="checkbox" id="signupPremium"> Upgrade to Premium Account (Free for project)
+        </label>
+        <br><br>
+        <button onclick="signup()">Create Account</button>
+        <p id="signupError" class="error"></p>
+    </div>
+
+    <div id="accountSection" class="section hidden">
+        <h3>Account Management</h3>
+        <p><strong>Status:</strong> <span id="premiumStatus"></span></p>
+        
+        <h4>Change Password</h4>
+        <input type="password" id="oldPass" placeholder="Current Password">
+        <input type="password" id="newPass" placeholder="New Password">
+        <button onclick="changePassword()">Update Password</button>
+        <p id="pwdMsg" class="error"></p>
+
+        <hr>
+        <button onclick="upgradeAccount()" style="background: green;">Upgrade to Premium</button>
+        <button onclick="deleteAccount()" style="background: darkred;">Delete Account</button>
+    </div>
 
     <script>
+        // Check if user is already logged in on page load
+        window.onload = () => {
+            const user = JSON.parse(localStorage.getItem('yourl_user'));
+            if (user) {
+                updateUIForUser(user);
+            }
+        };
+
+        function showSection(sectionId) {
+            ['appSection', 'loginSection', 'signupSection', 'accountSection'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(sectionId).classList.remove('hidden');
+        }
+
+        function updateUIForUser(user) {
+            document.getElementById('navLinks').classList.add('hidden');
+            document.getElementById('loggedInNav').classList.remove('hidden');
+            document.getElementById('welcomeMessage').innerText = `Hello, ${user.username} | `;
+            document.getElementById('premiumStatus').innerText = user.isPaid ? "Premium Member" : "Free Tier";
+            showSection('appSection');
+        }
+
+        function logout() {
+            localStorage.removeItem('yourl_user');
+            document.getElementById('navLinks').classList.remove('hidden');
+            document.getElementById('loggedInNav').classList.add('hidden');
+            showSection('appSection');
+            document.getElementById('result').innerText = '';
+        }
+
+        async function login() {
+            const u = document.getElementById('loginUser').value;
+            const p = document.getElementById('loginPass').value;
+            
+            const res = await fetch('/api/users/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: u, password: p })
+            });
+
+            if (res.ok) {
+                const user = await res.json();
+                localStorage.setItem('yourl_user', JSON.stringify(user));
+                updateUIForUser(user);
+                document.getElementById('loginError').innerText = '';
+            } else {
+                document.getElementById('loginError').innerText = 'Invalid credentials.';
+            }
+        }
+
+        async function signup() {
+            const u = document.getElementById('signupUser').value;
+            const p = document.getElementById('signupPass').value;
+            const isPremium = document.getElementById('signupPremium').checked;
+
+            // 1. Create the user
+            let res = await fetch('/api/users/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: u, password: p })
+            });
+
+            if (res.ok) {
+                let user = await res.json();
+                
+                // 2. If they checked premium, immediately call the upgrade endpoint
+                if (isPremium) {
+                    const upgradeRes = await fetch(`/api/users/${u}/upgrade`, { method: 'POST' });
+                    if (upgradeRes.ok) {
+                        user = await upgradeRes.json();
+                    }
+                }
+
+                localStorage.setItem('yourl_user', JSON.stringify(user));
+                updateUIForUser(user);
+                document.getElementById('signupError').innerText = '';
+            } else {
+                const err = await res.json();
+                document.getElementById('signupError').innerText = err.error || 'Signup failed.';
+            }
+        }
+
         async function shorten() {
             const longUrl = document.getElementById('longUrl').value;
-            const expiresAtInput = document.getElementById('expiresAt').value;
-            const expiresAt = expiresAtInput ? new Date(expiresAtInput).toISOString() : null;
+            const user = JSON.parse(localStorage.getItem('yourl_user'));
+            
+            // Build the payload matching the Java ShortenRequest record
+            const payload = { 
+                longUrl: longUrl,
+                userId: user ? user.userId : null 
+            };
+
             const response = await fetch('/api/shorten', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    longUrl,
-                    expiresAt
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
-            const body = await response.json();
-            if (!response.ok) {
-                document.getElementById('result').textContent = `Error: ${body.error || 'Unknown error'}`;
-                return;
+
+            if (response.ok) {
+                const data = await response.json();
+                const fullUrl = window.location.origin + '/' + data.shortId;
+                document.getElementById('result').innerHTML = `Short URL: <a href="${fullUrl}" target="_blank">${fullUrl}</a>`;
+            } else {
+                document.getElementById('result').innerText = "Error shortening URL. Check format.";
             }
-            document.getElementById('result').innerHTML = `Short URL: <a href="${body.shortUrl}">${body.shortUrl}</a>`;
+        }
+
+        async function changePassword() {
+            const user = JSON.parse(localStorage.getItem('yourl_user'));
+            const oldP = document.getElementById('oldPass').value;
+            const newP = document.getElementById('newPass').value;
+
+            const res = await fetch(`/api/users/${user.username}/password`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ oldPassword: oldP, newPassword: newP })
+            });
+
+            if (res.ok) {
+                const updatedUser = await res.json();
+                localStorage.setItem('yourl_user', JSON.stringify(updatedUser));
+                document.getElementById('pwdMsg').innerText = "Password updated successfully!";
+                document.getElementById('pwdMsg').style.color = "green";
+            } else {
+                document.getElementById('pwdMsg').innerText = "Update failed. Check current password.";
+                document.getElementById('pwdMsg').style.color = "red";
+            }
+        }
+
+        async function upgradeAccount() {
+            const user = JSON.parse(localStorage.getItem('yourl_user'));
+            const res = await fetch(`/api/users/${user.username}/upgrade`, { method: 'POST' });
+            if (res.ok) {
+                const updatedUser = await res.json();
+                localStorage.setItem('yourl_user', JSON.stringify(updatedUser));
+                updateUIForUser(updatedUser);
+                alert("Successfully upgraded to Premium!");
+            }
+        }
+
+        async function deleteAccount() {
+            if (confirm("Are you sure you want to delete your account? This cannot be undone.")) {
+                const user = JSON.parse(localStorage.getItem('yourl_user'));
+                await fetch(`/api/users/${user.username}`, { method: 'DELETE' });
+                logout();
+                alert("Account deleted.");
+            }
         }
     </script>
 </body>
