@@ -63,16 +63,21 @@ YouRL/
 
 ## Local Development
 
-### Prerequisite
+### Prerequisites
 - Docker Desktop running
+- Node.js and npm installed
 
-### Start the local stack
+### 1. Start the backend and Bigtable emulator
+
+From the repository root:
 
 ```bash
 docker compose up --build -d
 ```
 
-### Health check
+The backend runs on `http://localhost:8080`.
+
+### 2. Verify the backend
 
 ```bash
 curl -i http://localhost:8080/health
@@ -85,15 +90,38 @@ HTTP/1.1 200
 ok
 ```
 
-### Example: shorten a URL
+### 3. Start the frontend
+
+In a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend runs on `http://localhost:3000`.
+
+### 4. Manual test flow
+
+In the browser:
+- open `http://localhost:3000`
+- optionally sign up or log in
+- shorten a URL from the home page
+- open the returned short URL and confirm it redirects
+- if logged in, check the dashboard and settings pages
+
+### 5. Example backend API calls
+
+Create a short URL anonymously:
 
 ```bash
 curl -i -X POST http://localhost:8080/api/shorten \
   -H "Content-Type: application/json" \
-  --data '{"longUrl":"https://www.rice.edu","userId":"abc12"}'
+  --data '{"longUrl":"https://www.rice.edu"}'
 ```
 
-### Example: resolve a short URL
+Resolve a short URL:
 
 ```bash
 curl -i http://localhost:8080/<shortId>
@@ -106,7 +134,9 @@ HTTP/1.1 302
 Location: https://www.rice.edu
 ```
 
-### Stop the local stack
+### 6. Stop the local stack
+
+Stop the frontend dev server with `Ctrl + C`, then from the repository root run:
 
 ```bash
 docker compose down --remove-orphans
