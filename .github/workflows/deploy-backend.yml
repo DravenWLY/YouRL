@@ -1,0 +1,45 @@
+name: Deploy Backend
+
+on:
+  workflow_dispatch:
+
+env:
+  BIGTABLE_TABLE_ID: urls
+  BIGTABLE_META_FAMILY: meta
+  BIGTABLE_STATS_FAMILY: stats
+  BIGTABLE_USERS_TABLE_ID: users
+  BIGTABLE_USER_INFO_FAMILY: info
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+
+      - name: Deploy to App Engine
+        working-directory: backend
+        run: |
+          gcloud app deploy pom.xml \
+            --appyaml=src/main/app.yaml \
+            --project=${{ vars.GCP_PROJECT_ID }} \
+            --quiet
+
+      - name: Print deployed service URL
+        run: |
+          gcloud app browse \
+            --project=${{ vars.GCP_PROJECT_ID }} \
+            --no-launch-browser

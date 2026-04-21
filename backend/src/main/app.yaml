@@ -1,2 +1,10 @@
 runtime: java17
 instance_class: F1
+env_variables:
+  BIGTABLE_PROJECT_ID: "rice-comp-539-spring-2022"
+  BIGTABLE_INSTANCE_ID: "shared-instance-id"
+  BIGTABLE_TABLE_ID: "urls"
+  BIGTABLE_META_FAMILY: "meta"
+  BIGTABLE_STATS_FAMILY: "stats"
+  BIGTABLE_USERS_TABLE_ID: "users"
+  BIGTABLE_USER_INFO_FAMILY: "info"
