@@ -4,7 +4,11 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE_NAME: yourl-backend
+  BIGTABLE_TABLE_ID: urls
+  BIGTABLE_META_FAMILY: meta
+  BIGTABLE_STATS_FAMILY: stats
+  BIGTABLE_USERS_TABLE_ID: users
+  BIGTABLE_USER_INFO_FAMILY: info
 
 jobs:
   deploy:
@@ -24,33 +28,18 @@ jobs:
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
         with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          project_id: ${{ vars.GCP_PROJECT_ID }}
 
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
-
-      - name: Build backend image
+      - name: Deploy to App Engine
+        working-directory: backend
         run: |
-          docker build \
-            -t ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            ./backend
-
-      - name: Push backend image
-        run: |
-          docker push \
-            ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-
-      - name: Deploy to Cloud Run
-        run: |
-          gcloud run deploy ${{ secrets.CLOUD_RUN_SERVICE }} \
-            --image=${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            --region=${{ secrets.GCP_REGION }} \
-            --platform=managed \
-            --allow-unauthenticated \
-            --set-env-vars=BIGTABLE_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},BIGTABLE_INSTANCE_ID=${{ secrets.BIGTABLE_INSTANCE_ID }},BIGTABLE_TABLE_ID=${{ secrets.BIGTABLE_TABLE_ID }},BIGTABLE_META_FAMILY=${{ secrets.BIGTABLE_META_FAMILY }},BIGTABLE_STATS_FAMILY=${{ secrets.BIGTABLE_STATS_FAMILY }},BIGTABLE_USERS_TABLE_ID=${{ secrets.BIGTABLE_USERS_TABLE_ID }},BIGTABLE_USER_INFO_FAMILY=${{ secrets.BIGTABLE_USER_INFO_FAMILY }}
+          gcloud app deploy pom.xml \
+            --appyaml=src/main/app.yaml \
+            --project=${{ vars.GCP_PROJECT_ID }} \
+            --quiet
 
       - name: Print deployed service URL
         run: |
-          gcloud run services describe ${{ secrets.CLOUD_RUN_SERVICE }} \
-            --region=${{ secrets.GCP_REGION }} \
-            --format='value(status.url)'
+          gcloud app browse \
+            --project=${{ vars.GCP_PROJECT_ID }} \
+            --no-launch-browser
