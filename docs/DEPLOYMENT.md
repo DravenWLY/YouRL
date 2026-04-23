@@ -26,6 +26,7 @@ The workflow:
 
 1. authenticates to GCP using the service account key
 2. deploys the backend Maven project to App Engine
+3. uses the existing Cloud Build bucket as the staging bucket
 3. prints the App Engine service URL
 
 ## GitHub configuration needed
@@ -67,5 +68,6 @@ The current App Engine config uses these values:
 
 - Do not commit the service account key into the repository
 - Do not paste the key into chat tools
+- The deploy workflow uses `gs://<GCP_PROJECT_ID>_cloudbuild` as the staging bucket to avoid relying on the missing default `staging.<project>.appspot.com` bucket
 - For now, deploy the backend first and keep frontend deployment separate
 - Kubernetes manifests are still in the repo if the team later gets cluster access

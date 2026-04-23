@@ -36,6 +36,7 @@ jobs:
           gcloud app deploy pom.xml \
             --appyaml=src/main/app.yaml \
             --project=${{ vars.GCP_PROJECT_ID }} \
+            --bucket=gs://${{ vars.GCP_PROJECT_ID }}_cloudbuild \
             --quiet
 
       - name: Print deployed service URL
