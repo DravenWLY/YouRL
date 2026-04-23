@@ -1,7 +1,7 @@
 runtime: java17
 instance_class: F1
 service: team3-shortkings
-service_account: github-ci@rice-comp-539-spring-2022.iam.gserviceaccount.com
+service_account: stonks-2025@rice-comp-539-spring-2022.iam.gserviceaccount.com
 env_variables:
   BIGTABLE_PROJECT_ID: "rice-comp-539-spring-2022"
   BIGTABLE_INSTANCE_ID: "shared-instance-id"
