@@ -1,5 +1,6 @@
 runtime: java17
 instance_class: F1
+service: team3-shortkings
 service_account: github-ci@rice-comp-539-spring-2022.iam.gserviceaccount.com
 env_variables:
   BIGTABLE_PROJECT_ID: "rice-comp-539-spring-2022"

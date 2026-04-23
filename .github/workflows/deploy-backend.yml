@@ -43,4 +43,5 @@ jobs:
         run: |
           gcloud app browse \
             --project=${{ vars.GCP_PROJECT_ID }} \
+            --service=team3-shortkings \
             --no-launch-browser
