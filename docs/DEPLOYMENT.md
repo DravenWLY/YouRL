@@ -43,6 +43,7 @@ Current `app.yaml` uses:
 
 - `runtime: java17`
 - `instance_class: F1`
+- `service_account: sp25-comp539-team3-shortking@rice-comp-539-spring-2022.iam.gserviceaccount.com`
 - Bigtable environment variables for the current project and tables
 
 ## Current Bigtable values
@@ -69,5 +70,6 @@ The current App Engine config uses these values:
 - Do not commit the service account key into the repository
 - Do not paste the key into chat tools
 - The deploy workflow uses `gs://<GCP_PROJECT_ID>_cloudbuild` as the staging bucket to avoid relying on the missing default `staging.<project>.appspot.com` bucket
+- App Engine is configured to use the Team 3 `shortking` user-managed service account because the project default App Engine service account is unavailable
 - For now, deploy the backend first and keep frontend deployment separate
 - Kubernetes manifests are still in the repo if the team later gets cluster access
