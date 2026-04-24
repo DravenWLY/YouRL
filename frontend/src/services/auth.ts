@@ -1,7 +1,8 @@
-import { UserAccount, SignupRequest, LoginRequest, PasswordChangeRequest, ApiError } from '@/types';
+import { UserAccount, SignupRequest, LoginRequest, PasswordChangeRequest, ApiError, PremiumCheckoutRequest, VerificationEmailResponse, SignupResponse } from '@/types';
+
+import { USER_API_BASE as API_BASE } from '@/services/config';
 
 const AUTH_STORAGE_KEY = 'youRL_auth';
-const API_BASE = '/api/users';
 
 export class AuthService {
   private static buildApiError(message: string, status: number): ApiError {
@@ -45,8 +46,8 @@ export class AuthService {
     return this.getStoredUser();
   }
 
-  static async signup(username: string, password: string): Promise<UserAccount> {
-    const request: SignupRequest = { username, password };
+  static async signup(email: string, password: string): Promise<SignupResponse> {
+    const request: SignupRequest = { email, password };
     
     const response = await fetch(`${API_BASE}/signup`, {
       method: 'POST',
@@ -60,13 +61,11 @@ export class AuthService {
       await this.parseError(response, 'Signup failed');
     }
 
-    const user: UserAccount = await response.json();
-    this.setStoredUser(user);
-    return user;
+    return response.json();
   }
 
-  static async login(username: string, password: string): Promise<UserAccount> {
-    const request: LoginRequest = { username, password };
+  static async login(email: string, password: string): Promise<UserAccount> {
+    const request: LoginRequest = { email, password };
     
     const response = await fetch(`${API_BASE}/login`, {
       method: 'POST',
@@ -89,10 +88,10 @@ export class AuthService {
     this.setStoredUser(null);
   }
 
-  static async changePassword(username: string, oldPassword: string, newPassword: string): Promise<UserAccount> {
+  static async changePassword(email: string, oldPassword: string, newPassword: string): Promise<UserAccount> {
     const request: PasswordChangeRequest = { oldPassword, newPassword };
     
-    const response = await fetch(`${API_BASE}/${username}/password`, {
+    const response = await fetch(`${API_BASE}/${encodeURIComponent(email)}/password`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -107,14 +106,14 @@ export class AuthService {
     const user: UserAccount = await response.json();
     // Update stored user if it's the current user
     const currentUser = this.getStoredUser();
-    if (currentUser && currentUser.username === username) {
+    if (currentUser && currentUser.email === email) {
       this.setStoredUser(user);
     }
     return user;
   }
 
-  static async upgradeMembership(username: string): Promise<UserAccount> {
-    const response = await fetch(`${API_BASE}/${username}/upgrade`, {
+  static async resendVerificationEmail(email: string): Promise<VerificationEmailResponse> {
+    const response = await fetch(`${API_BASE}/${encodeURIComponent(email)}/verification/resend`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -122,20 +121,70 @@ export class AuthService {
     });
 
     if (!response.ok) {
-      await this.parseError(response, 'Upgrade failed');
+      await this.parseError(response, 'Verification email resend failed');
+    }
+
+    return response.json();
+  }
+
+  static async verifyEmail(token: string): Promise<UserAccount> {
+    const response = await fetch(`${API_BASE}/verify-email?token=${encodeURIComponent(token)}`);
+
+    if (!response.ok) {
+      await this.parseError(response, 'Email verification failed');
     }
 
     const user: UserAccount = await response.json();
-    // Update stored user if it's the current user
     const currentUser = this.getStoredUser();
-    if (currentUser && currentUser.username === username) {
+    if (currentUser && currentUser.email === user.email) {
       this.setStoredUser(user);
     }
     return user;
   }
 
-  static async deleteAccount(username: string): Promise<void> {
-    const response = await fetch(`${API_BASE}/${username}`, {
+  static async checkoutPremium(email: string, request: PremiumCheckoutRequest): Promise<UserAccount> {
+    const response = await fetch(`${API_BASE}/${encodeURIComponent(email)}/subscription/checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      await this.parseError(response, 'Checkout failed');
+    }
+
+    const user: UserAccount = await response.json();
+    const currentUser = this.getStoredUser();
+    if (currentUser && currentUser.email === email) {
+      this.setStoredUser(user);
+    }
+    return user;
+  }
+
+  static async cancelPremium(email: string): Promise<UserAccount> {
+    const response = await fetch(`${API_BASE}/${encodeURIComponent(email)}/subscription/cancel`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      await this.parseError(response, 'Cancellation failed');
+    }
+
+    const user: UserAccount = await response.json();
+    const currentUser = this.getStoredUser();
+    if (currentUser && currentUser.email === email) {
+      this.setStoredUser(user);
+    }
+    return user;
+  }
+
+  static async deleteAccount(email: string): Promise<void> {
+    const response = await fetch(`${API_BASE}/${encodeURIComponent(email)}`, {
       method: 'DELETE',
     });
 
@@ -145,7 +194,7 @@ export class AuthService {
 
     // Logout if it's the current user
     const currentUser = this.getStoredUser();
-    if (currentUser && currentUser.username === username) {
+    if (currentUser && currentUser.email === email) {
       this.logout();
     }
   }

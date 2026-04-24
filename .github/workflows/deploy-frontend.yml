@@ -1,0 +1,55 @@
+name: Deploy Frontend
+
+on:
+  workflow_dispatch:
+
+env:
+  FRONTEND_SERVICE_NAME: team3-shortkings-frontend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          VITE_API_BASE_URL="https://team3-shortkings-dot-${{ vars.GCP_PROJECT_ID }}.uk.r.appspot.com" npm run build
+
+      - name: Deploy to App Engine
+        working-directory: frontend
+        run: |
+          gcloud app deploy app.yaml \
+            --project=${{ vars.GCP_PROJECT_ID }} \
+            --bucket=gs://${{ vars.GCP_PROJECT_ID }}_cloudbuild \
+            --quiet
+
+      - name: Print deployed service URL
+        run: |
+          gcloud app browse \
+            --project=${{ vars.GCP_PROJECT_ID }} \
+            --service=${{ env.FRONTEND_SERVICE_NAME }} \
+            --no-launch-browser

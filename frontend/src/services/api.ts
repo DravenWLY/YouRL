@@ -8,7 +8,7 @@ import {
   ClaimUrlsResponse,
 } from '@/types';
 
-const API_BASE = '/api';
+import { API_BASE, BACKEND_ORIGIN } from '@/services/config';
 
 export class ApiService {
   private static buildApiError(message: string, status: number): ApiError {
@@ -34,10 +34,11 @@ export class ApiService {
     return response.json();
   }
 
-  static async shortenUrl(url: string, userId?: string | null): Promise<ShortenResponse> {
+  static async shortenUrl(url: string, userId?: string | null, customCode?: string | null): Promise<ShortenResponse> {
     const request: ShortenRequest = {
       longUrl: url,
       userId: userId,
+      customCode: customCode,
     };
 
     const response = await fetch(`${API_BASE}/shorten`, {
@@ -70,6 +71,6 @@ export class ApiService {
   }
 
   static redirectToShortUrl(shortId: string): void {
-    window.location.href = `/${shortId}`;
+    window.location.href = `${BACKEND_ORIGIN}/${shortId}`;
   }
 }
