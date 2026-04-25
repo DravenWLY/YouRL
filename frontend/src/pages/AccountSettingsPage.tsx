@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const AccountSettingsPage: React.FC = () => {
-  const { user, changePassword, upgradeMembership, deleteAccount } = useAuth();
+  const { user, changePassword, cancelPremium, deleteAccount } = useAuth();
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
-  const [upgradeLoading, setUpgradeLoading] = useState(false);
-  const [upgradeError, setUpgradeError] = useState<string | null>(null);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingMessage, setBillingMessage] = useState<string | null>(null);
+  const [billingError, setBillingError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -60,16 +62,18 @@ export const AccountSettingsPage: React.FC = () => {
     }
   };
 
-  const handleUpgrade = async () => {
-    setUpgradeLoading(true);
-    setUpgradeError(null);
+  const handleCancelPremium = async () => {
+    setBillingLoading(true);
+    setBillingError(null);
+    setBillingMessage(null);
 
     try {
-      await upgradeMembership();
+      await cancelPremium();
+      setBillingMessage('Auto-renew is now off. Premium stays active until the current billing period ends.');
     } catch (err) {
-      setUpgradeError(err instanceof Error ? err.message : 'Upgrade failed');
+      setBillingError(err instanceof Error ? err.message : 'Cancellation failed');
     } finally {
-      setUpgradeLoading(false);
+      setBillingLoading(false);
     }
   };
 
@@ -103,8 +107,8 @@ export const AccountSettingsPage: React.FC = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Information</h3>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-gray-600">Username:</span>
-              <span className="font-medium">{user?.username}</span>
+              <span className="text-gray-600">Email:</span>
+              <span className="font-medium break-all text-right">{user?.email}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">User ID:</span>
@@ -126,50 +130,64 @@ export const AccountSettingsPage: React.FC = () => {
             <div className="space-y-4">
               <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
                 <p className="font-medium">Premium Member</p>
-                <p className="text-sm mt-1">You have access to all premium features.</p>
+                <p className="text-sm mt-1">
+                  {user?.subscriptionStatus === 'canceling'
+                    ? 'Your subscription will not renew after the current billing period.'
+                    : 'You have access to all premium features.'}
+                </p>
               </div>
               <div className="text-gray-600 text-sm">
                 <p>Premium benefits include:</p>
                 <ul className="mt-2 space-y-1 pl-5 list-disc">
-                  <li>Advanced analytics</li>
-                  <li>Custom short codes</li>
-                  <li>Priority support</li>
+                  <li>Detailed dashboard analytics</li>
+                  <li>Custom short code creation</li>
+                  <li>Branded, easier-to-share short links</li>
                 </ul>
               </div>
+              <div className="text-gray-600 text-sm">
+                <p><strong>Plan:</strong> {user?.premiumPlan === 'annual' ? 'Premium Annual' : 'Premium Monthly'}</p>
+                {user?.currentPeriodEnd && (
+                  <p className="mt-1"><strong>Current period end:</strong> {new Date(user.currentPeriodEnd).toLocaleDateString()}</p>
+                )}
+                <p className="mt-1"><strong>Auto renew:</strong> {user?.autoRenew ? 'On' : 'Off'}</p>
+              </div>
+              {user?.autoRenew && (
+                <button
+                  onClick={handleCancelPremium}
+                  disabled={billingLoading}
+                  className="btn-secondary w-full"
+                >
+                  {billingLoading ? 'Updating...' : 'Cancel Auto-Renew'}
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
               <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
                 <p className="font-medium">Free Account</p>
-                <p className="text-sm mt-1">Upgrade to premium for advanced features.</p>
+                <p className="text-sm mt-1">Choose a plan and complete test checkout to unlock premium features.</p>
               </div>
-              <button
-                onClick={handleUpgrade}
-                disabled={upgradeLoading}
-                className="btn-primary w-full"
-              >
-                {upgradeLoading ? (
-                  <span className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                    Upgrading...
-                  </span>
-                ) : (
-                  'Upgrade to Premium'
-                )}
-              </button>
-              {upgradeError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                  {upgradeError}
-                </div>
-              )}
+              <Link to="/billing" className="btn-primary w-full text-center block">
+                Choose a Premium Plan
+              </Link>
               <div className="text-gray-600 text-sm">
                 <p>Premium features include:</p>
                 <ul className="mt-2 space-y-1 pl-5 list-disc">
-                  <li>Advanced analytics dashboard</li>
+                  <li>Detailed analytics dashboard</li>
                   <li>Custom short code creation</li>
-                  <li>Priority customer support</li>
+                  <li>Branded short links for easier sharing</li>
                 </ul>
               </div>
+            </div>
+          )}
+          {billingError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mt-4">
+              {billingError}
+            </div>
+          )}
+          {billingMessage && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm mt-4">
+              {billingMessage}
             </div>
           )}
         </div>

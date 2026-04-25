@@ -35,7 +35,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <span className="text-xl font-bold text-gray-900">YouRL</span>
               </Link>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               <NavLink
                 to="/"
@@ -97,9 +97,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <p>YouRL - A globally distributed URL shortener</p>
             <p className="mt-2">Built with React, TypeScript, and Spring Boot</p>
             <p className="mt-4">
-              <a 
-                href="https://github.com/DravenWLY/YouRL" 
-                target="_blank" 
+              <a
+                href="https://github.com/DravenWLY/YouRL"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary-600 hover:text-primary-800"
               >
@@ -110,7 +110,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </footer>
 
-      {/* Auth Modal */}
       {showAuthModal && (
         <>
           <div className="fixed inset-0 bg-black bg-opacity-50 z-40"></div>
@@ -125,8 +124,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-              
-              <AuthForm 
+
+              <AuthForm
                 initialMode={authMode}
                 onSuccess={handleAuthSuccess}
                 onCancel={() => setShowAuthModal(false)}

@@ -5,5 +5,7 @@ yourl:
     table-id: ${BIGTABLE_TABLE_ID:urls}
     meta-family: ${BIGTABLE_META_FAMILY:meta}
     stats-family: ${BIGTABLE_STATS_FAMILY:stats}
+    users-table-id: ${BIGTABLE_USERS_TABLE_ID:users}
+    user-info-family: ${BIGTABLE_USER_INFO_FAMILY:info}
     short-code-length: ${YOURL_SHORT_CODE_LENGTH:7}
     max-generation-attempts: ${YOURL_MAX_GENERATION_ATTEMPTS:8}

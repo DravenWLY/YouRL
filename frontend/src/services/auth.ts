@@ -1,4 +1,4 @@
-import { UserAccount, SignupRequest, LoginRequest, PasswordChangeRequest, ApiError, PremiumCheckoutRequest, VerificationEmailResponse, SignupResponse } from '@/types';
+import { UserAccount, SignupRequest, LoginRequest, PasswordChangeRequest, ApiError, PremiumCheckoutRequest } from '@/types';
 
 import { USER_API_BASE as API_BASE } from '@/services/config';
 
@@ -46,7 +46,7 @@ export class AuthService {
     return this.getStoredUser();
   }
 
-  static async signup(email: string, password: string): Promise<SignupResponse> {
+  static async signup(email: string, password: string): Promise<UserAccount> {
     const request: SignupRequest = { email, password };
     
     const response = await fetch(`${API_BASE}/signup`, {
@@ -61,7 +61,9 @@ export class AuthService {
       await this.parseError(response, 'Signup failed');
     }
 
-    return response.json();
+    const user: UserAccount = await response.json();
+    this.setStoredUser(user);
+    return user;
   }
 
   static async login(email: string, password: string): Promise<UserAccount> {
@@ -107,36 +109,6 @@ export class AuthService {
     // Update stored user if it's the current user
     const currentUser = this.getStoredUser();
     if (currentUser && currentUser.email === email) {
-      this.setStoredUser(user);
-    }
-    return user;
-  }
-
-  static async resendVerificationEmail(email: string): Promise<VerificationEmailResponse> {
-    const response = await fetch(`${API_BASE}/${encodeURIComponent(email)}/verification/resend`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      await this.parseError(response, 'Verification email resend failed');
-    }
-
-    return response.json();
-  }
-
-  static async verifyEmail(token: string): Promise<UserAccount> {
-    const response = await fetch(`${API_BASE}/verify-email?token=${encodeURIComponent(token)}`);
-
-    if (!response.ok) {
-      await this.parseError(response, 'Email verification failed');
-    }
-
-    const user: UserAccount = await response.json();
-    const currentUser = this.getStoredUser();
-    if (currentUser && currentUser.email === user.email) {
       this.setStoredUser(user);
     }
     return user;

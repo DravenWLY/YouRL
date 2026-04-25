@@ -10,6 +10,7 @@ export interface UrlData {
 export interface ShortenRequest {
   longUrl: string;
   userId?: string | null;
+  customCode?: string | null;
 }
 
 // Backend DTO: ShortenResponse.java
@@ -32,9 +33,23 @@ export interface ApiError extends Error {
 
 // Backend DTO: UserAccount.java
 export interface UserAccount {
-  username: string;
+  email: string;
   userId: string;
   isPaid: boolean;
+  premiumPlan?: string | null;
+  subscriptionStatus?: string | null;
+  autoRenew: boolean;
+  currentPeriodEnd?: string | null;
+}
+
+export interface PremiumCheckoutRequest {
+  planId: 'monthly' | 'annual';
+  billingEmail: string;
+  cardholderName: string;
+  cardNumber: string;
+  expiryMonth: string;
+  expiryYear: string;
+  cvc: string;
 }
 
 export interface UserUrlSummary {
@@ -58,12 +73,12 @@ export interface ClaimUrlsResponse {
 
 // Backend DTO: AuthRequests.java records
 export interface SignupRequest {
-  username: string;
+  email: string;
   password: string;
 }
 
 export interface LoginRequest {
-  username: string;
+  email: string;
   password: string;
 }
 

@@ -38,7 +38,7 @@
 
     <div id="loginSection" class="section hidden">
         <h3>Login</h3>
-        <input type="text" id="loginUser" placeholder="Username">
+        <input type="email" id="loginUser" placeholder="name@rice.edu">
         <input type="password" id="loginPass" placeholder="Password">
         <button onclick="login()">Login</button>
         <p id="loginError" class="error"></p>
@@ -46,12 +46,8 @@
 
     <div id="signupSection" class="section hidden">
         <h3>Sign Up</h3>
-        <input type="text" id="signupUser" placeholder="Username">
+        <input type="email" id="signupUser" placeholder="name@rice.edu">
         <input type="password" id="signupPass" placeholder="Password">
-        <label>
-            <input type="checkbox" id="signupPremium"> Upgrade to Premium Account (Free for project)
-        </label>
-        <br><br>
         <button onclick="signup()">Create Account</button>
         <p id="signupError" class="error"></p>
     </div>
@@ -67,7 +63,9 @@
         <p id="pwdMsg" class="error"></p>
 
         <hr>
-        <button onclick="upgradeAccount()" style="background: green;">Upgrade to Premium</button>
+        <p style="font-size: 0.9em; color: #555;">
+            Premium checkout is available in the React frontend experience.
+        </p>
         <button onclick="deleteAccount()" style="background: darkred;">Delete Account</button>
     </div>
 
@@ -90,7 +88,7 @@
         function updateUIForUser(user) {
             document.getElementById('navLinks').classList.add('hidden');
             document.getElementById('loggedInNav').classList.remove('hidden');
-            document.getElementById('welcomeMessage').innerText = `Hello, ${user.username} | `;
+            document.getElementById('welcomeMessage').innerText = `Hello, ${user.email} | `;
             document.getElementById('premiumStatus').innerText = user.isPaid ? "Premium Member" : "Free Tier";
             showSection('appSection');
         }
@@ -110,7 +108,7 @@
             const res = await fetch('/api/users/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: u, password: p })
+                body: JSON.stringify({ email: u, password: p })
             });
 
             if (res.ok) {
@@ -126,26 +124,16 @@
         async function signup() {
             const u = document.getElementById('signupUser').value;
             const p = document.getElementById('signupPass').value;
-            const isPremium = document.getElementById('signupPremium').checked;
 
             // 1. Create the user
             let res = await fetch('/api/users/signup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: u, password: p })
+                body: JSON.stringify({ email: u, password: p })
             });
 
             if (res.ok) {
-                let user = await res.json();
-                
-                // 2. If they checked premium, immediately call the upgrade endpoint
-                if (isPremium) {
-                    const upgradeRes = await fetch(`/api/users/${u}/upgrade`, { method: 'POST' });
-                    if (upgradeRes.ok) {
-                        user = await upgradeRes.json();
-                    }
-                }
-
+                const user = await res.json();
                 localStorage.setItem('yourl_user', JSON.stringify(user));
                 updateUIForUser(user);
                 document.getElementById('signupError').innerText = '';
@@ -185,7 +173,7 @@
             const oldP = document.getElementById('oldPass').value;
             const newP = document.getElementById('newPass').value;
 
-            const res = await fetch(`/api/users/${user.username}/password`, {
+            const res = await fetch(`/api/users/${encodeURIComponent(user.email)}/password`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ oldPassword: oldP, newPassword: newP })
@@ -202,21 +190,10 @@
             }
         }
 
-        async function upgradeAccount() {
-            const user = JSON.parse(localStorage.getItem('yourl_user'));
-            const res = await fetch(`/api/users/${user.username}/upgrade`, { method: 'POST' });
-            if (res.ok) {
-                const updatedUser = await res.json();
-                localStorage.setItem('yourl_user', JSON.stringify(updatedUser));
-                updateUIForUser(updatedUser);
-                alert("Successfully upgraded to Premium!");
-            }
-        }
-
         async function deleteAccount() {
             if (confirm("Are you sure you want to delete your account? This cannot be undone.")) {
                 const user = JSON.parse(localStorage.getItem('yourl_user'));
-                await fetch(`/api/users/${user.username}`, { method: 'DELETE' });
+                await fetch(`/api/users/${encodeURIComponent(user.email)}`, { method: 'DELETE' });
                 logout();
                 alert("Account deleted.");
             }

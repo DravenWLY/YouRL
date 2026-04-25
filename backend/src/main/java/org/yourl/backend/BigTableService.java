@@ -59,7 +59,9 @@ public class BigTableService {
     public UrlMapping shortenUrl(ShortenRequest request) {
         requireAvailability();
 
-        String shortId = generateShortCode();
+        String shortId = request.customCode() != null && !request.customCode().isBlank()
+                ? request.customCode()
+                : generateUniqueShortCode();
         Instant now = Instant.now();
 
         RowMutation mutation = RowMutation.create(properties.getTableId(), shortId)
@@ -136,6 +138,11 @@ public class BigTableService {
                 Comparator.nullsLast(Comparator.reverseOrder())
         ));
         return summaries;
+    }
+
+    public boolean shortCodeExists(String shortCode) {
+        requireAvailability();
+        return dataClient.readRow(properties.getTableId(), shortCode) != null;
     }
 
     public int claimUrlsForUser(String userId, List<String> shortIds) {
@@ -225,45 +232,94 @@ public class BigTableService {
 
     // --- User Management Methods ---
 
-    public UserAccount createUser(String username, String password) {
+    public UserAccount createUser(String email, String password) {
         requireAvailability();
-        if (getUser(username) != null) {
-            throw new IllegalArgumentException("Username already exists");
+        if (getUser(email) != null) {
+            throw new IllegalArgumentException("An account with this email already exists");
         }
 
         String userId = generateUserId();
-        RowMutation mutation = RowMutation.create(properties.getUsersTableId(), username)
+        String verificationToken = null;
+        Instant verificationSentAt = null;
+        RowMutation mutation = RowMutation.create(properties.getUsersTableId(), email)
+                .setCell(properties.getUserInfoFamily(), "email", email)
                 .setCell(properties.getUserInfoFamily(), "user_id", userId)
                 .setCell(properties.getUserInfoFamily(), "password", password) // Note: In production, hash this!
-                .setCell(properties.getUserInfoFamily(), "is_paid", "false");
+                .setCell(properties.getUserInfoFamily(), "is_paid", "false")
+                .setCell(properties.getUserInfoFamily(), "email_verified", "true")
+                .setCell(properties.getUserInfoFamily(), "verification_sent_at", "")
+                .setCell(properties.getUserInfoFamily(), "premium_plan", "free")
+                .setCell(properties.getUserInfoFamily(), "subscription_status", "inactive")
+                .setCell(properties.getUserInfoFamily(), "auto_renew", "false");
 
         dataClient.mutateRow(mutation);
-        return new UserAccount(username, userId, password, false);
+        return new UserAccount(email, userId, password, false, true, verificationToken, verificationSentAt, "free", "inactive", false, null);
     }
 
-    public UserAccount getUser(String username) {
+    public UserAccount getUser(String email) {
         requireAvailability();
-        Row row = dataClient.readRow(properties.getUsersTableId(), username);
+        Row row = dataClient.readRow(properties.getUsersTableId(), email);
         if (row == null) return null;
 
         String userId = readCellAsString(row, properties.getUserInfoFamily(), "user_id");
         String password = readCellAsString(row, properties.getUserInfoFamily(), "password");
         boolean isPaid = Boolean.parseBoolean(readCellAsString(row, properties.getUserInfoFamily(), "is_paid"));
+        boolean emailVerified = Boolean.parseBoolean(readCellAsString(row, properties.getUserInfoFamily(), "email_verified"));
+        String verificationToken = readCellAsString(row, properties.getUserInfoFamily(), "verification_token");
+        Instant verificationSentAt = parseInstant(readCellAsString(row, properties.getUserInfoFamily(), "verification_sent_at"));
+        String premiumPlan = defaultIfBlank(readCellAsString(row, properties.getUserInfoFamily(), "premium_plan"), "free");
+        String subscriptionStatus = defaultIfBlank(readCellAsString(row, properties.getUserInfoFamily(), "subscription_status"), isPaid ? "active" : "inactive");
+        boolean autoRenew = Boolean.parseBoolean(defaultIfBlank(readCellAsString(row, properties.getUserInfoFamily(), "auto_renew"), "false"));
+        Instant currentPeriodEnd = parseInstant(readCellAsString(row, properties.getUserInfoFamily(), "current_period_end"));
 
-        return new UserAccount(username, userId, password, isPaid);
+        return new UserAccount(email, userId, password, isPaid, emailVerified, verificationToken, verificationSentAt, premiumPlan, subscriptionStatus, autoRenew, currentPeriodEnd);
+    }
+
+    public UserAccount getUserById(String userId) {
+        requireAvailability();
+        for (Row row : dataClient.readRows(Query.create(properties.getUsersTableId()))) {
+            String storedUserId = readCellAsString(row, properties.getUserInfoFamily(), "user_id");
+            if (userId.equals(storedUserId)) {
+                String email = row.getKey().toStringUtf8();
+                String password = readCellAsString(row, properties.getUserInfoFamily(), "password");
+                boolean isPaid = Boolean.parseBoolean(readCellAsString(row, properties.getUserInfoFamily(), "is_paid"));
+                boolean emailVerified = Boolean.parseBoolean(readCellAsString(row, properties.getUserInfoFamily(), "email_verified"));
+                String verificationToken = readCellAsString(row, properties.getUserInfoFamily(), "verification_token");
+                Instant verificationSentAt = parseInstant(readCellAsString(row, properties.getUserInfoFamily(), "verification_sent_at"));
+                String premiumPlan = defaultIfBlank(readCellAsString(row, properties.getUserInfoFamily(), "premium_plan"), "free");
+                String subscriptionStatus = defaultIfBlank(readCellAsString(row, properties.getUserInfoFamily(), "subscription_status"), isPaid ? "active" : "inactive");
+                boolean autoRenew = Boolean.parseBoolean(defaultIfBlank(readCellAsString(row, properties.getUserInfoFamily(), "auto_renew"), "false"));
+                Instant currentPeriodEnd = parseInstant(readCellAsString(row, properties.getUserInfoFamily(), "current_period_end"));
+                return new UserAccount(email, userId, password, isPaid, emailVerified, verificationToken, verificationSentAt, premiumPlan, subscriptionStatus, autoRenew, currentPeriodEnd);
+            }
+        }
+        return null;
     }
 
     public void updateUser(UserAccount user) {
         requireAvailability();
-        RowMutation mutation = RowMutation.create(properties.getUsersTableId(), user.username())
+        RowMutation mutation = RowMutation.create(properties.getUsersTableId(), user.email())
+                .setCell(properties.getUserInfoFamily(), "email", user.email())
                 .setCell(properties.getUserInfoFamily(), "password", user.password())
-                .setCell(properties.getUserInfoFamily(), "is_paid", String.valueOf(user.isPaid()));
+                .setCell(properties.getUserInfoFamily(), "is_paid", String.valueOf(user.isPaid()))
+                .setCell(properties.getUserInfoFamily(), "email_verified", String.valueOf(user.emailVerified()))
+                .setCell(properties.getUserInfoFamily(), "verification_sent_at", user.verificationSentAt() == null ? "" : user.verificationSentAt().toString())
+                .setCell(properties.getUserInfoFamily(), "premium_plan", defaultIfBlank(user.premiumPlan(), "free"))
+                .setCell(properties.getUserInfoFamily(), "subscription_status", defaultIfBlank(user.subscriptionStatus(), user.isPaid() ? "active" : "inactive"))
+                .setCell(properties.getUserInfoFamily(), "auto_renew", String.valueOf(user.autoRenew()))
+                .setCell(properties.getUserInfoFamily(), "current_period_end", user.currentPeriodEnd() == null ? "" : user.currentPeriodEnd().toString());
+
+        if (user.verificationToken() == null || user.verificationToken().isBlank()) {
+            mutation.deleteCells(properties.getUserInfoFamily(), "verification_token");
+        } else {
+            mutation.setCell(properties.getUserInfoFamily(), "verification_token", user.verificationToken());
+        }
         dataClient.mutateRow(mutation);
     }
 
-    public void deleteUser(String username) {
+    public void deleteUser(String email) {
         requireAvailability();
-        RowMutation mutation = RowMutation.create(properties.getUsersTableId(), username).deleteRow();
+        RowMutation mutation = RowMutation.create(properties.getUsersTableId(), email).deleteRow();
         dataClient.mutateRow(mutation);
     }
 
@@ -274,6 +330,16 @@ public class BigTableService {
         }
         // Basic collision check (in a real app, you'd query a reverse index, but this is fine for the prototype)
         return builder.toString();
+    }
+
+    private String generateUniqueShortCode() {
+        for (int attempt = 0; attempt < properties.getMaxGenerationAttempts(); attempt++) {
+            String generated = generateShortCode();
+            if (!shortCodeExists(generated)) {
+                return generated;
+            }
+        }
+        throw new IllegalStateException("Unable to generate a unique short code");
     }
 
     private void requireAvailability() {
@@ -291,6 +357,58 @@ public class BigTableService {
                 .setCell(properties.getStatsFamily(), "last_access_ts", now.toString());
 
         dataClient.mutateRow(statsMutation);
+    }
+
+    public UserAccount startPremiumSubscription(String email, String planId) {
+        requireAvailability();
+        UserAccount user = getUser(email);
+        if (user == null) {
+            return null;
+        }
+
+        Instant currentPeriodEnd = "annual".equals(planId)
+                ? Instant.now().plusSeconds(365L * 24 * 60 * 60)
+                : Instant.now().plusSeconds(30L * 24 * 60 * 60);
+
+        UserAccount updatedUser = new UserAccount(
+                user.email(),
+                user.userId(),
+                user.password(),
+                true,
+                user.emailVerified(),
+                user.verificationToken(),
+                user.verificationSentAt(),
+                planId,
+                "active",
+                true,
+                currentPeriodEnd
+        );
+        updateUser(updatedUser);
+        return updatedUser;
+    }
+
+    public UserAccount cancelPremiumSubscription(String email) {
+        requireAvailability();
+        UserAccount user = getUser(email);
+        if (user == null) {
+            return null;
+        }
+
+        UserAccount updatedUser = new UserAccount(
+                user.email(),
+                user.userId(),
+                user.password(),
+                user.isPaid(),
+                user.emailVerified(),
+                user.verificationToken(),
+                user.verificationSentAt(),
+                user.premiumPlan(),
+                user.isPaid() ? "canceling" : "inactive",
+                false,
+                user.currentPeriodEnd()
+        );
+        updateUser(updatedUser);
+        return updatedUser;
     }
 
     private void ensureUrlsTable(BigtableTableAdminClient adminClient) {
@@ -321,5 +439,9 @@ public class BigTableService {
             adminClient.createTable(CreateTableRequest.of(properties.getUsersTableId())
                     .addFamily(properties.getUserInfoFamily()));
         }
+    }
+
+    private String defaultIfBlank(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 }

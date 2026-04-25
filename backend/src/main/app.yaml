@@ -11,3 +11,4 @@ env_variables:
   BIGTABLE_USERS_TABLE_ID: "users"
   BIGTABLE_USER_INFO_FAMILY: "info"
   FRONTEND_ALLOWED_ORIGINS: "https://team3-shortkings-frontend-dot-rice-comp-539-spring-2022.uk.r.appspot.com,http://localhost:3000"
+  YOURL_FRONTEND_BASE_URL: "https://team3-shortkings-frontend-dot-rice-comp-539-spring-2022.uk.r.appspot.com"
