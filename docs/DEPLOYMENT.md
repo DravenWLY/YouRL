@@ -1,52 +1,67 @@
-# Backend Deployment
+# Deployment
 
-Current deployment scope is backend-only.
+The current prototype deploys backend and frontend as separate App Engine services.
 
-- frontend remains a separate React/Vite app
-- backend is prepared for App Engine now
-- Kubernetes manifests are kept in the repo as a later-path option
-- Bigtable remains the primary database
+- backend service: `team3-shortkings`
+- frontend service: `team3-shortkings-frontend`
+- project: `rice-comp-539-spring-2022`
+- staging bucket: `gs://rice-comp-539-spring-2022_cloudbuild`
+- runtime service account: `stonks-2025@rice-comp-539-spring-2022.iam.gserviceaccount.com`
 
-## Recommended prototype path
+This separation matches the practical industry pattern for a React SPA plus API service: frontend and backend can be built, deployed, rolled back, and scaled independently.
 
-Because Artifact Registry / Cloud Run / GKE access may be restricted for some team members, the most practical
-prototype path is App Engine.
+## Why App Engine
 
-This matches the syllabus guidance that App Engine is historically the shortest path to a working prototype for
-Java on GCP.
+Artifact Registry, Cloud Run, and GKE permissions are restricted in the shared class project. App Engine is the shortest stable deployment path available for the current prototype and matches the course's suggested deployment options.
 
-## App Engine workflow
+Kubernetes manifests remain in the repo as a later-path option, but App Engine is the active deployment target.
+
+## GitHub Actions Workflows
 
 Files:
 
-- `/Users/wulingyun/Desktop/Rice/Courses/Spring 2026/COMP_539/YouRL/.github/workflows/deploy-backend.yml`
-- `/Users/wulingyun/Desktop/Rice/Courses/Spring 2026/COMP_539/YouRL/backend/src/main/app.yaml`
+- `.github/workflows/deploy-backend.yml`
+- `.github/workflows/deploy-frontend.yml`
+- `backend/src/main/app.yaml`
+- `frontend/app.yaml`
 
-The workflow:
+Both workflows are manually triggered with `workflow_dispatch`.
 
-1. authenticates to GCP using the service account key
-2. deploys the backend Maven project to App Engine
-3. prints the App Engine service URL
+Backend workflow:
 
-## GitHub configuration needed
+1. authenticates to GCP with `GCP_SA_KEY`
+2. deploys `backend/pom.xml` with `backend/src/main/app.yaml`
+3. uses the existing Cloud Build bucket as the App Engine staging bucket
+4. prints the deployed backend service URL
 
-### Repository secret
-- `GCP_SA_KEY`
+Frontend workflow:
 
-### Repository variable
-- `GCP_PROJECT_ID = rice-comp-539-spring-2022`
+1. authenticates to GCP with `GCP_SA_KEY`
+2. installs Node dependencies
+3. builds the Vite app with `VITE_API_BASE_URL` pointing at the backend App Engine service
+4. deploys `frontend/app.yaml`
+5. prints the deployed frontend service URL
 
-## App Engine configuration
+## GitHub Configuration
 
-Current `app.yaml` uses:
+Repository secret:
+
+- `GCP_SA_KEY`: full JSON service account key. Do not commit this file or paste it into chat.
+
+Repository variable:
+
+- `GCP_PROJECT_ID=rice-comp-539-spring-2022`
+
+## Backend App Engine Configuration
+
+`backend/src/main/app.yaml` currently uses:
 
 - `runtime: java17`
 - `instance_class: F1`
-- Bigtable environment variables for the current project and tables
+- `service: team3-shortkings`
+- `service_account: stonks-2025@rice-comp-539-spring-2022.iam.gserviceaccount.com`
 
-## Current Bigtable values
-
-The current App Engine config uses these values:
+Bigtable environment values:
 
 - `BIGTABLE_PROJECT_ID=rice-comp-539-spring-2022`
 - `BIGTABLE_INSTANCE_ID=shared-instance-id`
@@ -56,16 +71,49 @@ The current App Engine config uses these values:
 - `BIGTABLE_USERS_TABLE_ID=users`
 - `BIGTABLE_USER_INFO_FAMILY=info`
 
-## How to run it
+CORS/frontend values:
 
-1. Push the branch to GitHub
-2. Open GitHub Actions
-3. Select `Deploy Backend`
-4. Click `Run workflow`
+- `FRONTEND_ALLOWED_ORIGINS=https://team3-shortkings-frontend-dot-rice-comp-539-spring-2022.uk.r.appspot.com,http://localhost:3000`
+- `YOURL_FRONTEND_BASE_URL=https://team3-shortkings-frontend-dot-rice-comp-539-spring-2022.uk.r.appspot.com`
+
+Authentication notes:
+
+- The MVP uses email/password signup and login.
+- Real email verification and SMTP delivery are future work and are not required for the current demo.
+
+## Frontend App Engine Configuration
+
+`frontend/app.yaml` currently uses:
+
+- `runtime: nodejs22`
+- `service: team3-shortkings-frontend`
+- `service_account: stonks-2025@rice-comp-539-spring-2022.iam.gserviceaccount.com`
+- `instance_class: F1`
+
+The frontend build reads the API base URL from `VITE_API_BASE_URL` during GitHub Actions.
+
+## How To Deploy
+
+Backend:
+
+1. Push the branch to GitHub.
+2. Open GitHub Actions.
+3. Select `Deploy Backend`.
+4. Click `Run workflow`.
+
+Frontend:
+
+1. Push the branch to GitHub.
+2. Open GitHub Actions.
+3. Select `Deploy Frontend`.
+4. Click `Run workflow`.
+
+Deploy backend first when API or CORS settings change. Deploy frontend after frontend UI or `VITE_API_BASE_URL` changes.
 
 ## Notes
 
-- Do not commit the service account key into the repository
-- Do not paste the key into chat tools
-- For now, deploy the backend first and keep frontend deployment separate
-- Kubernetes manifests are still in the repo if the team later gets cluster access
+- Do not commit the service account key into the repository.
+- Do not paste the key into chat tools.
+- The deploy workflow uses `gs://<GCP_PROJECT_ID>_cloudbuild` to avoid relying on the missing default `staging.<project>.appspot.com` bucket.
+- App Engine keeps old versions; redeploying creates a new version and routes traffic to it.
+- Separate App Engine service names prevent other teams from overwriting Team 3's backend/frontend services.

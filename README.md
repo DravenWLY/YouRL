@@ -17,24 +17,26 @@ YouRL is a URL shortener built for COMP 539. Our target architecture is:
 - Java 17 + Spring Boot backend
 - Cloud Bigtable as the primary database
 - React (Vite) frontend
-- GCP deployment later in the course
+- App Engine deployment with separate backend and frontend services
 
 ## Current MVP Status
 
 Current local MVP supports:
-- user signup, login, password change, account upgrade, and account deletion
+- email-based signup, login, password change, account deletion, duplicate email checks, and prototype premium billing
 - `POST /api/shorten` to create a short URL
 - `GET /{shortId}` to resolve and redirect
 - `GET /api/urls?userId=...` to populate the dashboard
 - Bigtable emulator for local storage
 - `urls` table with `meta` and `stats` column families
 - `users` table for prototype account data
+- premium-only custom short codes and detailed click analytics
 
 Current request contract:
 - `POST /api/shorten` uses JSON
 - `GET /{shortId}` returns `302 Found` on success
+- auth uses `email` + `password`
 
-See `/Users/wulingyun/Desktop/Rice/Courses/Spring 2026/COMP_539/YouRL/docs/API_Contract.md` for the frozen MVP request/response format.
+See `docs/API_Contract.md` for the frozen MVP request/response format.
 
 ## Tech Stack
 
@@ -44,9 +46,9 @@ See `/Users/wulingyun/Desktop/Rice/Courses/Spring 2026/COMP_539/YouRL/docs/API_C
 | Database | Cloud Bigtable |
 | Local DB | Bigtable emulator |
 | Frontend | React (Vite) |
-| Auth | Firebase Authentication (planned) |
+| Auth | Email-password auth |
 | Caching | Caffeine (planned) |
-| Compute | GCP Cloud Run (planned) |
+| Compute | GCP App Engine |
 | CI | GitHub Actions |
 
 ## Project Structure
@@ -54,9 +56,11 @@ See `/Users/wulingyun/Desktop/Rice/Courses/Spring 2026/COMP_539/YouRL/docs/API_C
 ```text
 YouRL/
 ├── backend/                     # Spring Boot backend
+├── frontend/                    # React (Vite) frontend
 ├── docs/                        # Design and API docs
 │   ├── Tech_Stack_Design_Discussion.md
 │   └── API_Contract.md
+├── scripts/                     # Local smoke/regression helpers
 ├── docker-compose.yml           # Local backend + Bigtable emulator
 └── README.md
 ```
@@ -110,6 +114,27 @@ In the browser:
 - shorten a URL from the home page
 - open the returned short URL and confirm it redirects
 - if logged in, check the dashboard and settings pages
+- if you start a premium subscription, try creating a custom short code and confirm the dashboard shows click analytics
+
+### Premium testing for this prototype
+
+You do **not** need to make a real payment to test premium behavior.
+
+This prototype now follows a more realistic subscription flow:
+- sign up with an email address
+- log in after signing up
+- go to `/billing`
+- choose a monthly or annual plan
+- complete checkout with a payment **test card**
+
+Use these test cards:
+- success: `4242 4242 4242 4242`
+- decline: `4000 0000 0000 0002`
+
+This mirrors the sandbox/testing pattern used by real payment providers. No real charge is created.
+
+Note:
+- real email verification is future work; the MVP validates email format and rejects duplicate email registration
 
 ### 5. Example backend API calls
 
@@ -134,6 +159,12 @@ HTTP/1.1 302
 Location: https://www.rice.edu
 ```
 
+Run the local backend smoke test script:
+
+```bash
+./scripts/test-prototype-smoke.sh
+```
+
 ### 6. Stop the local stack
 
 Stop the frontend dev server with `Ctrl + C`, then from the repository root run:
@@ -153,7 +184,8 @@ GitHub Actions currently does three things on PRs to `main`:
 
 - finish prototype integration and remove remaining placeholder UI
 - logging / metrics v1 for shorten and resolve flows
-- backend deploy/CD once the working prototype is stable
+- keep backend and frontend App Engine CD workflows healthy
+- add real email verification as future work if production-style authentication is required
 
 ## License
 

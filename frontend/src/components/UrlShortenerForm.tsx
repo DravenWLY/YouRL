@@ -11,6 +11,7 @@ interface UrlShortenerFormProps {
 export const UrlShortenerForm: React.FC<UrlShortenerFormProps> = ({ onShortenSuccess }) => {
   const user = useCurrentUser();
   const [url, setUrl] = useState('');
+  const [customCode, setCustomCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ShortenResponse | null>(null);
@@ -38,16 +39,22 @@ export const UrlShortenerForm: React.FC<UrlShortenerFormProps> = ({ onShortenSuc
       return;
     }
 
+    if (customCode.trim() && !/^[A-Za-z0-9_-]{4,24}$/.test(customCode.trim())) {
+      setError('Custom short code must be 4-24 characters using letters, numbers, hyphens, or underscores.');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await ApiService.shortenUrl(url, user?.userId);
+      const response = await ApiService.shortenUrl(url, user?.userId, customCode.trim() || null);
       if (!user) {
         AnonymousUrlService.add(response.shortId);
       }
       setResult(response);
       onShortenSuccess?.(response);
       setUrl('');
+      setCustomCode('');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to shorten URL. Please try again.');
     } finally {
@@ -81,6 +88,27 @@ export const UrlShortenerForm: React.FC<UrlShortenerFormProps> = ({ onShortenSuc
             disabled={loading}
           />
         </div>
+
+        {user?.isPaid && (
+          <div>
+            <label htmlFor="customCode" className="block text-sm font-medium text-gray-700 mb-2">
+              Custom short code (Premium)
+            </label>
+            <input
+              id="customCode"
+              type="text"
+              value={customCode}
+              onChange={(e) => setCustomCode(e.target.value)}
+              placeholder="your-brand"
+              className="input-primary"
+              disabled={loading}
+              autoComplete="off"
+            />
+            <p className="mt-2 text-xs text-gray-500">
+              Optional. Use 4-24 letters, numbers, hyphens, or underscores to create a branded short URL.
+            </p>
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
@@ -133,12 +161,17 @@ export const UrlShortenerForm: React.FC<UrlShortenerFormProps> = ({ onShortenSuc
         <p>Your shortened URLs will redirect to their original destination.</p>
         {user && (
           <p className="mt-2 text-primary-600">
-            ✓ This URL will be associated with your account ({user.username})
+            ✓ This URL will be associated with your account ({user.email})
           </p>
         )}
         {!user && (
           <p className="mt-2">
             You can shorten links without an account. Log in if you want to save and manage them later.
+          </p>
+        )}
+        {user && !user.isPaid && (
+          <p className="mt-2 text-amber-700">
+            Upgrade to Premium to create custom short codes and unlock detailed click analytics.
           </p>
         )}
       </div>

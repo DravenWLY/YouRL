@@ -2,17 +2,18 @@ import React, { createContext, useState, useContext, useEffect, ReactNode } from
 import { AuthService } from '@/services/auth';
 import { ApiService } from '@/services/api';
 import { AnonymousUrlService } from '@/services/anonymousUrls';
-import { UserAccount, AuthState } from '@/types';
+import { UserAccount, AuthState, PremiumCheckoutRequest } from '@/types';
 
 interface AuthContextType {
   user: UserAccount | null;
   loading: boolean;
   error: string | null;
-  signup: (username: string, password: string) => Promise<void>;
-  login: (username: string, password: string) => Promise<void>;
+  signup: (email: string, password: string) => Promise<UserAccount>;
+  login: (email: string, password: string) => Promise<UserAccount>;
   logout: () => void;
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
-  upgradeMembership: () => Promise<void>;
+  completePremiumCheckout: (request: PremiumCheckoutRequest) => Promise<void>;
+  cancelPremium: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   clearError: () => void;
 }
@@ -43,7 +44,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     error: null,
   });
 
-  // Initialize auth state from sessionStorage
   useEffect(() => {
     const initializeAuth = () => {
       try {
@@ -81,16 +81,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const signup = async (username: string, password: string): Promise<void> => {
+  const signup = async (email: string, password: string): Promise<UserAccount> => {
     setAuthState(prev => ({ ...prev, loading: true, error: null }));
     try {
-      const user = await AuthService.signup(username, password);
+      const user = await AuthService.signup(email, password);
       await claimAnonymousUrls(user.userId);
       setAuthState({
         user,
         loading: false,
         error: null,
       });
+      return user;
     } catch (err) {
       setAuthState(prev => ({
         ...prev,
@@ -101,16 +102,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const login = async (username: string, password: string): Promise<void> => {
+  const login = async (email: string, password: string): Promise<UserAccount> => {
     setAuthState(prev => ({ ...prev, loading: true, error: null }));
     try {
-      const user = await AuthService.login(username, password);
+      const user = await AuthService.login(email, password);
       await claimAnonymousUrls(user.userId);
       setAuthState({
         user,
         loading: false,
         error: null,
       });
+      return user;
     } catch (err) {
       setAuthState(prev => ({
         ...prev,
@@ -137,7 +139,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     setAuthState(prev => ({ ...prev, loading: true, error: null }));
     try {
-      const user = await AuthService.changePassword(authState.user.username, oldPassword, newPassword);
+      const user = await AuthService.changePassword(authState.user.email, oldPassword, newPassword);
       setAuthState(prev => ({
         ...prev,
         user,
@@ -154,14 +156,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const upgradeMembership = async (): Promise<void> => {
+  const completePremiumCheckout = async (request: PremiumCheckoutRequest): Promise<void> => {
     if (!authState.user) {
-      throw new Error('User must be logged in to upgrade membership');
+      throw new Error('User must be logged in to start checkout');
     }
 
     setAuthState(prev => ({ ...prev, loading: true, error: null }));
     try {
-      const user = await AuthService.upgradeMembership(authState.user.username);
+      const user = await AuthService.checkoutPremium(authState.user.email, request);
       setAuthState(prev => ({
         ...prev,
         user,
@@ -172,7 +174,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setAuthState(prev => ({
         ...prev,
         loading: false,
-        error: err instanceof Error ? err.message : 'Upgrade failed',
+        error: err instanceof Error ? err.message : 'Checkout failed',
+      }));
+      throw err;
+    }
+  };
+
+  const cancelPremium = async (): Promise<void> => {
+    if (!authState.user) {
+      throw new Error('User must be logged in to manage billing');
+    }
+
+    setAuthState(prev => ({ ...prev, loading: true, error: null }));
+    try {
+      const user = await AuthService.cancelPremium(authState.user.email);
+      setAuthState(prev => ({
+        ...prev,
+        user,
+        loading: false,
+        error: null,
+      }));
+    } catch (err) {
+      setAuthState(prev => ({
+        ...prev,
+        loading: false,
+        error: err instanceof Error ? err.message : 'Cancellation failed',
       }));
       throw err;
     }
@@ -185,7 +211,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     setAuthState(prev => ({ ...prev, loading: true, error: null }));
     try {
-      await AuthService.deleteAccount(authState.user.username);
+      await AuthService.deleteAccount(authState.user.email);
       setAuthState({
         user: null,
         loading: false,
@@ -213,7 +239,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     logout,
     changePassword,
-    upgradeMembership,
+    completePremiumCheckout,
+    cancelPremium,
     deleteAccount,
     clearError,
   };

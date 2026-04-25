@@ -1,14 +1,10 @@
-name: Deploy Backend
+name: Deploy Frontend
 
 on:
   workflow_dispatch:
 
 env:
-  BIGTABLE_TABLE_ID: urls
-  BIGTABLE_META_FAMILY: meta
-  BIGTABLE_STATS_FAMILY: stats
-  BIGTABLE_USERS_TABLE_ID: users
-  BIGTABLE_USER_INFO_FAMILY: info
+  FRONTEND_SERVICE_NAME: team3-shortkings-frontend
 
 jobs:
   deploy:
@@ -30,11 +26,23 @@ jobs:
         with:
           project_id: ${{ vars.GCP_PROJECT_ID }}
 
-      - name: Deploy to App Engine
-        working-directory: backend
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
         run: |
-          gcloud app deploy pom.xml \
-            --appyaml=src/main/app.yaml \
+          npm ci
+          VITE_API_BASE_URL="https://team3-shortkings-dot-${{ vars.GCP_PROJECT_ID }}.uk.r.appspot.com" npm run build
+
+      - name: Deploy to App Engine
+        working-directory: frontend
+        run: |
+          gcloud app deploy app.yaml \
             --project=${{ vars.GCP_PROJECT_ID }} \
             --bucket=gs://${{ vars.GCP_PROJECT_ID }}_cloudbuild \
             --quiet
@@ -43,5 +51,5 @@ jobs:
         run: |
           gcloud app browse \
             --project=${{ vars.GCP_PROJECT_ID }} \
-            --service=team3-shortkings \
+            --service=${{ env.FRONTEND_SERVICE_NAME }} \
             --no-launch-browser

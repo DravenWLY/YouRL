@@ -9,13 +9,13 @@ interface AuthFormProps {
   onCancel?: () => void;
 }
 
-export const AuthForm: React.FC<AuthFormProps> = ({ 
-  initialMode = 'login', 
+export const AuthForm: React.FC<AuthFormProps> = ({
+  initialMode = 'login',
   onSuccess,
-  onCancel 
+  onCancel
 }) => {
   const [mode, setMode] = useState<AuthMode>(initialMode);
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
@@ -23,15 +23,20 @@ export const AuthForm: React.FC<AuthFormProps> = ({
 
   const isLogin = mode === 'login';
   const title = isLogin ? 'Log In' : 'Sign Up';
-  const switchText = isLogin ? "Don't have an account?" : "Already have an account?";
+  const switchText = isLogin ? "Don't have an account?" : 'Already have an account?';
   const switchActionText = isLogin ? 'Sign Up' : 'Log In';
 
   const validateForm = (): boolean => {
     setFormError(null);
     clearError();
 
-    if (!username.trim()) {
-      setFormError('Username is required');
+    if (!email.trim()) {
+      setFormError('Email is required');
+      return false;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setFormError('Please enter a valid email address');
       return false;
     }
 
@@ -57,21 +62,22 @@ export const AuthForm: React.FC<AuthFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
 
     try {
-      if (isLogin) {
-        await login(username, password);
-      } else {
-        await signup(username, password);
+      const authenticatedUser = isLogin
+        ? await login(email, password)
+        : await signup(email, password);
+
+      if (authenticatedUser) {
+        onSuccess?.();
       }
-      onSuccess?.();
     } catch (err) {
-      // Error is already handled by auth context
       console.error('Authentication error:', err);
+      setFormError(err instanceof Error ? err.message : isLogin ? 'Login failed' : 'Signup failed');
     }
   };
 
@@ -95,18 +101,19 @@ export const AuthForm: React.FC<AuthFormProps> = ({
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-            Username
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+            Email
           </label>
           <input
-            id="username"
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="Enter your username"
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="name@rice.edu"
             className="input-primary w-full"
             disabled={loading}
-            autoComplete="username"
+            autoComplete="email"
+            inputMode="email"
           />
         </div>
 
@@ -144,7 +151,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
           </div>
         )}
 
-        {(displayError) && (
+        {displayError && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
             {displayError}
           </div>
@@ -192,14 +199,6 @@ export const AuthForm: React.FC<AuthFormProps> = ({
           </p>
         </div>
       </form>
-
-      {isLogin && (
-        <div className="mt-6 text-sm text-gray-500">
-          <p>Demo credentials (if you want to test):</p>
-          <p className="font-mono mt-1">Username: testuser</p>
-          <p className="font-mono">Password: testpass</p>
-        </div>
-      )}
     </div>
   );
 };

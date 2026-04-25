@@ -56,7 +56,7 @@ export const DashboardPage: React.FC = () => {
           Your Dashboard
         </h1>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          Welcome back, {user?.username}! Manage your shortened URLs and account settings.
+          Welcome back, {user?.email}! Manage your shortened URLs and account settings.
         </p>
       </div>
 
@@ -66,8 +66,8 @@ export const DashboardPage: React.FC = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Summary</h3>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-gray-600">Username:</span>
-              <span className="font-medium">{user?.username}</span>
+              <span className="text-gray-600">Email:</span>
+              <span className="font-medium break-all text-right">{user?.email}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">User ID:</span>
@@ -90,10 +90,17 @@ export const DashboardPage: React.FC = () => {
                 <div className="text-3xl font-bold text-primary-600">{urls.length}</div>
                 <div className="text-gray-600 mt-1">URLs Created</div>
               </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <div className="text-3xl font-bold text-primary-600">{totalClicks}</div>
-                <div className="text-gray-600 mt-1">Total Clicks</div>
-              </div>
+              {user?.isPaid ? (
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <div className="text-3xl font-bold text-primary-600">{totalClicks}</div>
+                  <div className="text-gray-600 mt-1">Total Clicks</div>
+                </div>
+              ) : (
+                <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="text-sm font-semibold text-yellow-800">Premium Analytics</div>
+                  <div className="text-yellow-700 mt-1 text-sm">Upgrade to view total clicks and per-link analytics.</div>
+                </div>
+              )}
             </div>
         </div>
 
@@ -179,11 +186,19 @@ export const DashboardPage: React.FC = () => {
                 </div>
                 <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-gray-600">
                   <div>Created: {new Date(url.createdAt).toLocaleString()}</div>
-                  <div>Clicks: {url.clickCount}</div>
-                  <div>
-                    Last Access:{' '}
-                    {url.lastAccessTs ? new Date(url.lastAccessTs).toLocaleString() : 'No clicks yet'}
-                  </div>
+                  {user?.isPaid ? (
+                    <>
+                      <div>Clicks: {url.clickCount}</div>
+                      <div>
+                        Last Access:{' '}
+                        {url.lastAccessTs ? new Date(url.lastAccessTs).toLocaleString() : 'No clicks yet'}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="md:col-span-2 text-amber-700">
+                      Upgrade to Premium to unlock detailed click analytics for this link.
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -202,8 +217,9 @@ export const DashboardPage: React.FC = () => {
             </p>
             <ul className="space-y-2 pl-5 list-disc">
               <li>All URLs you've created</li>
-              <li>Click statistics for each URL</li>
-              <li>Options to edit or delete URLs</li>
+              <li>Click statistics for each URL (Premium)</li>
+              <li>Custom short code support (Premium)</li>
+              <li>Account-based link management</li>
             </ul>
           </div>
         </div>

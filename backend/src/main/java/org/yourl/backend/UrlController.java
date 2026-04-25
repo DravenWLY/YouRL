@@ -13,6 +13,7 @@ import java.util.List;
 
 @RestController
 public class UrlController {
+    private static final String CUSTOM_CODE_REGEX = "^[A-Za-z0-9_-]{4,24}$";
     private final BigTableService bigTableService;
 
     public UrlController(BigTableService bigTableService) {
@@ -35,12 +36,45 @@ public class UrlController {
             return ResponseEntity.badRequest().body(new ErrorResponse("longUrl must be a valid http or https URL"));
         }
 
+        if (request.customCode() != null && !request.customCode().isBlank()) {
+            if (request.userId() == null || request.userId().isBlank()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ErrorResponse("Premium account required for custom short codes"));
+            }
+
+            UserAccount user = bigTableService.getUserById(request.userId());
+            if (user == null || !user.isPaid()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ErrorResponse("Premium account required for custom short codes"));
+            }
+
+            if (!request.customCode().matches(CUSTOM_CODE_REGEX)) {
+                return ResponseEntity.badRequest()
+                        .body(new ErrorResponse("customCode must be 4-24 characters using letters, numbers, hyphens, or underscores"));
+            }
+
+            if (isReservedCode(request.customCode())) {
+                return ResponseEntity.badRequest().body(new ErrorResponse("customCode is reserved"));
+            }
+
+            if (bigTableService.shortCodeExists(request.customCode())) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(new ErrorResponse("customCode is already in use"));
+            }
+        }
+
         Instant expiresAt = request.expiresAt();
         if (expiresAt != null && !expiresAt.isAfter(Instant.now())) {
             return ResponseEntity.badRequest().body(new ErrorResponse("expiresAt must be in the future"));
         }
 
-        UrlMapping mapping = bigTableService.shortenUrl(request); // Note: we pass the whole request now
+        UrlMapping mapping;
+        try {
+            mapping = bigTableService.shortenUrl(request);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse(e.getMessage()));
+        }
 
         // Including mapping.userId() in the response constructor
         return ResponseEntity.ok(new ShortenResponse(
@@ -133,5 +167,11 @@ public class UrlController {
                 .path("/{shortId}")
                 .buildAndExpand(shortId)
                 .toUriString();
+    }
+
+    private boolean isReservedCode(String code) {
+        return "api".equalsIgnoreCase(code)
+                || "health".equalsIgnoreCase(code)
+                || "actuator".equalsIgnoreCase(code);
     }
 }

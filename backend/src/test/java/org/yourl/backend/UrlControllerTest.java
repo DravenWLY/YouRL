@@ -36,7 +36,7 @@ class UrlControllerTest {
         Mockito.when(bigTableService.shortenUrl(Mockito.any(ShortenRequest.class)))
                 .thenReturn(new UrlMapping("abc1234", "https://www.rice.edu", "test-user", createdAt, null, true));
 
-        ShortenRequest request = new ShortenRequest("https://www.rice.edu", null, "test-user");
+        ShortenRequest request = new ShortenRequest("https://www.rice.edu", null, "test-user", null);
 
         mockMvc.perform(post("/api/shorten")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -54,7 +54,7 @@ class UrlControllerTest {
     void shortenReturnsBadRequestForInvalidUrl() throws Exception {
         Mockito.when(bigTableService.isAvailable()).thenReturn(true);
 
-        ShortenRequest request = new ShortenRequest("not-a-url", null, "test-user");
+        ShortenRequest request = new ShortenRequest("not-a-url", null, "test-user", null);
 
         mockMvc.perform(post("/api/shorten")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -70,7 +70,8 @@ class UrlControllerTest {
         ShortenRequest request = new ShortenRequest(
                 "https://www.rice.edu",
                 Instant.now().minusSeconds(60),
-                "test-user"
+                "test-user",
+                null
         );
 
         mockMvc.perform(post("/api/shorten")
@@ -84,7 +85,7 @@ class UrlControllerTest {
     void shortenReturnsServiceUnavailableWhenBigtableIsDown() throws Exception {
         Mockito.when(bigTableService.isAvailable()).thenReturn(false);
 
-        ShortenRequest request = new ShortenRequest("https://www.rice.edu", null, "test-user");
+        ShortenRequest request = new ShortenRequest("https://www.rice.edu", null, "test-user", null);
 
         mockMvc.perform(post("/api/shorten")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -163,5 +164,57 @@ class UrlControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("shortIds is required"));
+    }
+
+    @Test
+    void shortenRejectsCustomCodeForFreeUsers() throws Exception {
+        Mockito.when(bigTableService.isAvailable()).thenReturn(true);
+        Mockito.when(bigTableService.getUserById("free-user"))
+                .thenReturn(new UserAccount("free@example.com", "free-user", "secret123", false, true, null, null, "free", "inactive", false, null));
+
+        ShortenRequest request = new ShortenRequest("https://www.rice.edu", null, "free-user", "rice2026");
+
+        mockMvc.perform(post("/api/shorten")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("Premium account required for custom short codes"));
+    }
+
+    @Test
+    void shortenAcceptsCustomCodeForPremiumUsers() throws Exception {
+        Instant createdAt = Instant.parse("2026-04-02T23:15:42.019Z");
+        Mockito.when(bigTableService.isAvailable()).thenReturn(true);
+        Mockito.when(bigTableService.getUserById("paid-user"))
+                .thenReturn(new UserAccount("paid@example.com", "paid-user", "secret123", true, true, null, null, "monthly", "active", true, null));
+        Mockito.when(bigTableService.shortCodeExists("rice2026")).thenReturn(false);
+        Mockito.when(bigTableService.shortenUrl(Mockito.any(ShortenRequest.class)))
+                .thenReturn(new UrlMapping("rice2026", "https://www.rice.edu", "paid-user", createdAt, null, true));
+
+        ShortenRequest request = new ShortenRequest("https://www.rice.edu", null, "paid-user", "rice2026");
+
+        mockMvc.perform(post("/api/shorten")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Host", "localhost:8080")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.shortId").value("rice2026"))
+                .andExpect(jsonPath("$.shortUrl").value("http://localhost:8080/rice2026"));
+    }
+
+    @Test
+    void shortenRejectsCustomCodeConflict() throws Exception {
+        Mockito.when(bigTableService.isAvailable()).thenReturn(true);
+        Mockito.when(bigTableService.getUserById("paid-user"))
+                .thenReturn(new UserAccount("paid@example.com", "paid-user", "secret123", true, true, null, null, "monthly", "active", true, null));
+        Mockito.when(bigTableService.shortCodeExists("rice2026")).thenReturn(true);
+
+        ShortenRequest request = new ShortenRequest("https://www.rice.edu", null, "paid-user", "rice2026");
+
+        mockMvc.perform(post("/api/shorten")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("customCode is already in use"));
     }
 }

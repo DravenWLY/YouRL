@@ -1,0 +1,4 @@
+runtime: nodejs22
+service: team3-shortkings-frontend
+service_account: stonks-2025@rice-comp-539-spring-2022.iam.gserviceaccount.com
+instance_class: F1

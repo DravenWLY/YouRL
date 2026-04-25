@@ -7,6 +7,7 @@ import { HomePage } from '@/pages/HomePage';
 
 import { DashboardPage } from '@/pages/DashboardPage';
 import { AccountSettingsPage } from '@/pages/AccountSettingsPage';
+import { BillingPage } from '@/pages/BillingPage';
 
 const App: React.FC = () => {
   return (
@@ -19,6 +20,11 @@ const App: React.FC = () => {
             <Route path="/dashboard" element={
               <ProtectedRoute requireAuth>
                 <DashboardPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/billing" element={
+              <ProtectedRoute requireAuth>
+                <BillingPage />
               </ProtectedRoute>
             } />
             <Route path="/settings" element={
